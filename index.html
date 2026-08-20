@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231a5c38'/><text x='16' y='22' text-anchor='middle' font-size='18' font-family='sans-serif' font-weight='bold' fill='white'>S</text></svg>">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Commercial Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js">
+</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="styles.css?v=60">
+  <script>
+    // Expose user role — checked on page load
+    window.SDG_USER = { role: 'editor' }; // default; overridden by session check below
+
+    // Redirect to login if API returns 401
+    const _origFetch = window.fetch;
+    window.fetch = function(...args) {
+      return _origFetch(...args).then(async res => {
+        if (res.status === 401) {
+          try {
+            const data = await res.clone().json();
+            const login = '/login.php';
+            window.location.href = login + '?next=' + encodeURIComponent(window.location.pathname);
+          } catch(e) {
+            window.location.href = '/login.php?next=' + encodeURIComponent(window.location.pathname);
+          }
+        }
+        return res;
+      });
+    };
+
+    // Check session role on load — hide edit controls for viewers
+    fetch('/api/session.php').then(r => r.json()).then(data => {
+      if (data.role) window.SDG_USER.role = data.role;
+      if (data.role === 'viewer') {
+        document.documentElement.setAttribute('data-role', 'viewer');
+      }
+    }).catch(() => {});
+  </script>
+  <style>
+    /* Hide all edit/add/delete controls for viewer role */
+    html[data-role="viewer"] .btn-green,
+    html[data-role="viewer"] .act-btn,
+    html[data-role="viewer"] [onclick*="openEdit"],
+    html[data-role="viewer"] [onclick*="rvOpenForm"],
+    html[data-role="viewer"] [onclick*="go('add'"] { display: none !important; }
+    html[data-role="viewer"] .pg-hd-action { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-top">
+    <div class="sb-wordmark">
+      <div class="sb-wordmark-name">Example Org</div>
+      <div class="sb-wordmark-sub">DEVELOPMENT GROUP</div>
+    </div>
+    <button class="sb-toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar">
+      <svg id="sb-toggle-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" width="16" height="16">
+        <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="11" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="sb-scroll">
+    <div class="sb-section">
+      <div class="nav on" id="nav-overview" onclick="go('overview',this)" role="button" tabindex="0" title="Overview">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><rect x="1" y="9" width="4" height="6" rx="1"/><rect x="6" y="5" width="4" height="10" rx="1"/><rect x="11" y="1" width="4" height="14" rx="1"/></svg></span>
+        <span class="nav-txt">Overview</span>
+      </div>
+      <div class="nav" id="nav-deals" onclick="go('deals',this)" role="button" tabindex="0" title="Opportunities">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h8M2 12h10"/></svg></span>
+        <span class="nav-txt">Opportunities</span>
+        <span class="nav-ct" id="nc-deals">—</span>
+      </div>
+      <div class="nav" id="nav-add" onclick="go('add',this)" role="button" tabindex="0" title="Log Deal">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg></span>
+        <span class="nav-txt">Log Deal</span>
+      </div>
+    </div>
+
+    <div class="sb-div"></div>
+
+    <div class="sb-section">
+      <div class="sb-lbl">Diagnostics</div>
+      <div class="nav" id="nav-risk" onclick="go('risk',this)" role="button" tabindex="0" title="Risk Analysis">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><path d="M8 2L1 14h14L8 2z"/><line x1="8" y1="7" x2="8" y2="10"/><circle cx="8" cy="12.5" r=".6" fill="currentColor" stroke="none"/></svg></span>
+        <span class="nav-txt">Risk Analysis</span>
+      </div>
+      <div class="nav" id="nav-focus" onclick="go('focus',this)" role="button" tabindex="0" title="Focus Matrix">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2"/><circle cx="8" cy="8" r="5"/><line x1="8" y1="1" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="1" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="15" y2="8"/></svg></span>
+        <span class="nav-txt">Focus Matrix</span>
+      </div>
+    </div>
+
+    <div class="sb-div"></div>
+
+    <div class="sb-section">
+      <div class="sb-lbl">Analysis</div>
+      <div class="nav" id="nav-winning" onclick="go('winning',this)" role="button" tabindex="0" title="Win Analysis">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4L8 10l-3.6 1.9.7-4L2.2 5.2l4-.6z"/></svg></span>
+        <span class="nav-txt">Win Analysis</span>
+      </div>
+      <div class="nav" id="nav-sectors" onclick="go('sectors',this)" role="button" tabindex="0" title="Sectors">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><rect x="1" y="10" width="4" height="5" rx="1"/><rect x="6" y="6" width="4" height="9" rx="1"/><rect x="11" y="2" width="4" height="13" rx="1"/></svg></span>
+        <span class="nav-txt">Sectors</span>
+      </div>
+      <div class="nav" id="nav-geography" onclick="go('geography',this)" role="button" tabindex="0" title="Geography">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2c-2 2-3 4-3 6s1 4 3 6M8 2c2 2 3 4 3 6s-1 4-3 6"/><line x1="2" y1="8" x2="14" y2="8"/></svg></span>
+        <span class="nav-txt">Beyond Kenya</span>
+      </div>
+      <div class="nav" id="nav-origination" onclick="go('origination',this)" role="button" tabindex="0" title="Deal Origination">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><circle cx="4" cy="8" r="2.5"/><circle cx="12" cy="4" r="2.5"/><circle cx="12" cy="12" r="2.5"/><line x1="6.4" y1="7" x2="9.6" y2="5"/><line x1="6.4" y1="9" x2="9.6" y2="11"/></svg></span>
+        <span class="nav-txt">Origination</span>
+      </div>
+      <div class="nav" id="nav-strategic-partnerships" onclick="go('strategic-partnerships',this)" role="button" tabindex="0" title="Strategic Partnerships">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="5" y="5" width="3" height="10" rx="1"/><rect x="9" y="7" width="3" height="8" rx="1"/><rect x="13" y="2" width="2" height="13" rx="1"/></svg></span>
+        <span class="nav-txt">Partnerships</span>
+      </div>
+    </div>
+
+    <div class="sb-div"></div>
+
+    <div class="sb-section">
+      <div class="sb-lbl">Planning</div>
+      <div class="nav" id="nav-revenue" onclick="go('revenue',this)" role="button" tabindex="0" title="Realized Revenue">
+        <span class="nav-ic"><svg viewBox="0 0 16 16"><rect x="1" y="9" width="3" height="6" rx=".5"/><rect x="5" y="6" width="3" height="9" rx=".5"/><rect x="9" y="3" width="3" height="12" rx=".5"/><rect x="13" y="1" width="2" height="14" rx=".5"/></svg></span>
+        <span class="nav-txt">Revenue</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sb-foot">
+    <div class="sb-foot-workspace">Example Organisation</div>
+    <div class="sb-foot-meta">
+      <span class="sb-foot-dot"></span>
+      <span id="sb-live">—</span>
+    </div>
+    <a href="/logout.php" style="display:flex;align-items:center;gap:7px;margin-top:8px;padding:6px 10px;border-radius:7px;font-size:10px;font-weight:600;color:var(--ink4);text-decoration:none;transition:background .12s;width:100%" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>
+      Sign out
+    </a>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- MOBILE TOPBAR -->
+  <div class="mobile-topbar" id="mob-topbar">
+    <button class="mob-hamburger" onclick="mobToggle()" aria-label="Menu">
+      <svg viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" width="18" height="14">
+        <line x1="0" y1="1" x2="18" y2="1"/><line x1="0" y1="7" x2="18" y2="7"/><line x1="0" y1="13" x2="18" y2="13"/>
+      </svg>
+    </button>
+    <div class="mob-sdg-mark"><span>SDG</span><div class="mob-sdg-mark-bar"></div></div>
+    <div class="mob-page-title" id="mob-title">Overview</div>
+    <button class="mob-hamburger" onclick="go('add',document.getElementById('nav-add'))" style="color:var(--green)" aria-label="Log Deal">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16">
+        <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- MOBILE BACKDROP -->
+  <div class="mob-backdrop" id="mob-backdrop" onclick="mobClose()"></div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav" id="bottom-nav">
+    <button class="bn-item active" id="bn-overview" onclick="go('overview',document.getElementById('nav-overview'));mobBnSet('overview')">
+      <span class="bn-icon"><svg viewBox="0 0 16 16"><rect x="1" y="9" width="4" height="6" rx="1"/><rect x="6" y="5" width="4" height="10" rx="1"/><rect x="11" y="1" width="4" height="14" rx="1"/></svg></span>
+      <span class="bn-label">Overview</span>
+    </button>
+    <button class="bn-item" id="bn-deals" onclick="go('deals',document.getElementById('nav-deals'));mobBnSet('deals')">
+      <span class="bn-icon"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h8M2 12h10"/></svg></span>
+      <span class="bn-label">Deals</span>
+    </button>
+    <button class="bn-item" id="bn-risk" onclick="go('risk',document.getElementById('nav-risk'));mobBnSet('risk')">
+      <span class="bn-icon"><svg viewBox="0 0 16 16"><path d="M8 2L1 14h14L8 2z"/><line x1="8" y1="7" x2="8" y2="10"/><circle cx="8" cy="12.5" r=".6" fill="currentColor" stroke="none"/></svg></span>
+      <span class="bn-label">Signals</span>
+    </button>
+    <button class="bn-item" id="bn-revenue" onclick="go('revenue',document.getElementById('nav-revenue'));mobBnSet('revenue')">
+      <span class="bn-icon"><svg viewBox="0 0 16 16" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="14" height="10" rx="2"/><path d="M5 9l2-2 2 2 2-2"/></svg></span>
+      <span class="bn-label">Revenue</span>
+    </button>
+    <button class="bn-item" id="bn-more" onclick="mobSheetOpen()">
+      <span class="bn-icon"><svg viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="13" cy="8" r="1.2" fill="currentColor" stroke="none"/></svg></span>
+      <span class="bn-label">More</span>
+    </button>
+  </div>
+
+  <!-- BOTTOM SHEET -->
+  <div class="mob-sheet" id="mob-sheet">
+    <div class="mob-sheet-handle"></div>
+    <div class="mob-sheet-item" onclick="go('focus',document.getElementById('nav-focus'));mobSheetClose();mobBnSet('focus')">
+      <span class="mob-sheet-ic"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2"/><circle cx="8" cy="8" r="5"/><line x1="8" y1="1" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="1" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="15" y2="8"/></svg></span>Focus Matrix
+    </div>
+    <div class="mob-sheet-item" onclick="go('winning',document.getElementById('nav-winning'));mobSheetClose();mobBnSet('winning')">
+      <span class="mob-sheet-ic"><svg viewBox="0 0 16 16"><path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4L8 10l-3.6 1.9.7-4L2.2 5.2l4-.6z"/></svg></span>Win Analysis
+    </div>
+    <div class="mob-sheet-item" onclick="go('sectors',document.getElementById('nav-sectors'));mobSheetClose()">
+      <span class="mob-sheet-ic"><svg viewBox="0 0 16 16"><rect x="1" y="10" width="4" height="5" rx="1"/><rect x="6" y="6" width="4" height="9" rx="1"/><rect x="11" y="2" width="4" height="13" rx="1"/></svg></span>Sectors
+    </div>
+    <div class="mob-sheet-item" onclick="go('geography',document.getElementById('nav-geography'));mobSheetClose()">
+      <span class="mob-sheet-ic"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2c-2 2-3 4-3 6s1 4 3 6M8 2c2 2 3 4 3 6s-1 4-3 6"/><line x1="2" y1="8" x2="14" y2="8"/></svg></span>Beyond Kenya
+    </div>
+    <div class="mob-sheet-item" onclick="go('revenue',document.getElementById('nav-revenue'));mobSheetClose();mobBnSet('revenue')">
+      <span class="mob-sheet-ic"><svg viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="10" rx="2"/><line x1="5" y1="8" x2="5" y2="8" stroke-linecap="round" stroke-width="2.5"/><line x1="8" y1="6" x2="8" y2="10"/><line x1="11" y1="7" x2="11" y2="10"/></svg></span>Revenue
+    </div>
+    <div class="mob-sheet-item" onclick="go('add',document.getElementById('nav-add'));mobSheetClose()">
+      <span class="mob-sheet-ic"><svg viewBox="0 0 16 16"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg></span>Log Deal
+    </div>
+  </div>
+
+  <div class="pages">
+
+  <!-- OVERVIEW -->
+  <div class="page on" id="pg-overview">
+    <div class="pg-header">
+      <span class="pg-hd-icon">📊</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Executive Overview</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-overview">All Divisions · 2026</div>
+      </div>
+      <div class="pg-hd-action">
+        <button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- ROW 1: 4 KPI cards — pipeline story -->
+      <div class="kg c4" style="gap:10px;margin-bottom:10px" id="ov-kpis-top"></div>
+
+      <!-- ROW 2: 4 KPI cards — activity signals -->
+      <div class="kg c4" style="gap:10px;margin-bottom:12px" id="ov-kpis-bot"></div>
+
+      <!-- ROW 3: Gauge (1 col) + Division Revenue (3 cols) — matches 4-col KPI rows above -->
+      <div class="ov-gauge-row" style="margin-bottom:12px">
+
+        <!-- Gauge card -->
+        <div class="card" style="display:flex;flex-direction:column">
+          <div class="card-head" style="border-bottom:1px solid var(--bd)">
+            <div class="card-title">Revenue vs Target</div>
+            <div class="card-note">Realised · Running · Balance</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 10px 12px">
+            <canvas id="ov-gauge-canvas"></canvas>
+            <div id="ov-gauge-label" style="text-align:center;margin-top:6px;width:100%"></div>
+          </div>
+        </div>
+
+        <!-- Division Revenue card -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Division Revenue</div>
+            <div class="card-note">Earned vs 2026 annual target</div>
+          </div>
+          <div id="ov-div-tracker"></div>
+        </div>
+      </div>
+
+      <!-- ROW 4: Deal Stage by Division — full width heatmap -->
+      <div class="card mb12">
+        <div class="card-head">
+          <div class="card-title">Deal Stage by Division</div>
+          <div class="card-note">Count per project stage · PDM phases</div>
+        </div>
+        <div class="card-body np" id="ov-heatmap"></div>
+      </div>
+
+      <!-- ROW 5: Near Close (left) + Deal Stage Funnel (right) — equal height -->
+      <div class="g2" style="align-items:start">
+
+        <!-- Near Close card -->
+        <div class="card" style="display:flex;flex-direction:column">
+          <div class="card-head">
+            <div class="card-title">Near Close</div>
+            <div class="card-note" id="ov-decision-badge">—</div>
+          </div>
+          <div id="ov-decisions" style="overflow-y:auto;max-height:340px"></div>
+        </div>
+
+        <!-- Deal Stage Funnel card -->
+        <div class="card" style="display:flex;flex-direction:column">
+          <div class="card-head">
+            <div class="card-title">Deal Stage Funnel</div>
+            <div class="card-note">Deals · Declared value</div>
+          </div>
+          <div id="ov-funnel"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- OPPORTUNITIES -->
+  <div class="page" id="pg-deals">
+    <div class="pg-header">
+      <span class="pg-hd-icon">📋</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Opportunities</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-deals">All Divisions · 2026</div>
+      </div>
+      <div class="pg-hd-action"><button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button></div>
+    </div>
+    <div class="page-body">
+      <div class="opp-toolbar">
+        <div class="opp-search-wrap">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="m10 10 3.5 3.5"/></svg>
+          <input type="text" id="opp-search" class="opp-search" placeholder="Search opportunities, clients, countries…" oninput="oppSearch=this.value.toLowerCase();renderOpps()">
+          <button class="opp-search-clear" id="opp-search-clear" onclick="clearOppSearch()" title="Clear search">×</button>
+        </div>
+        <div class="view-toggle">
+          <button class="view-btn active" id="vbtn-table" onclick="setOppView('table',this)" title="Table view">☰</button>
+          <button class="view-btn" id="vbtn-kanban" onclick="setOppView('kanban',this)" title="Stage view">⊞</button>
+          <button class="view-btn" id="vbtn-cards" onclick="setOppView('cards',this)" title="Card view">⊟</button>
+        </div>
+        <select class="opp-sort" onchange="oppSortK=this.value;renderOpps()" id="opp-sort-sel">
+          <option value="prob-d">Win Probability ↓</option>
+          <option value="prob-a">Win Probability ↑</option>
+          <option value="val-d">Contract Value ↓</option>
+          <option value="val-a">Contract Value ↑</option>
+          <option value="stage">Pipeline Stage</option>
+          <option value="name">Name A–Z</option>
+          <option value="country">Country A–Z</option>
+          <option value="div">Division</option>
+          <option value="age-d">Oldest First</option>
+        </select>
+        <div class="opp-count-strip" id="opp-count-strip">
+          <span id="opp-count-n">—</span> opportunities · <span id="opp-count-v">—</span>
+        </div>
+        <button class="opp-filter-btn" id="opp-filter-btn" onclick="toggleOppFilters()">
+          <span>⚙ Filters</span><span class="opp-filter-badge" id="opp-filter-badge" style="display:none">0</span>
+        </button>
+        <button class="btn-xl-dl" onclick="exportDealsExcel()" title="Download as Excel">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" width="12" height="12"><path d="M8 2v8"/><path d="M5 7l3 3 3-3"/><path d="M2 13h12"/></svg>
+          Excel
+        </button>
+      </div>
+      <div class="opp-filter-panel" id="opp-filter-panel" style="display:none">
+        <div class="opp-filter-grid">
+
+          <!-- Column 1: Who / What -->
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Status</div>
+            <div class="opp-multi" id="fmulti-status">
+              <label><input type="checkbox" value="Open"    onchange="updateOppFilters()"> Open</label>
+              <label><input type="checkbox" value="On Hold" onchange="updateOppFilters()"> On Hold</label>
+              <label><input type="checkbox" value="Won"     onchange="updateOppFilters()"> Won</label>
+              <label><input type="checkbox" value="Lost"    onchange="updateOppFilters()"> Lost</label>
+            </div>
+          </div>
+
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Division</div>
+            <div class="opp-multi" id="fmulti-div">
+              <label><input type="checkbox" value="DM" onchange="updateOppFilters()"> Development Management</label>
+              <label><input type="checkbox" value="CI" onchange="updateOppFilters()"> Civil &amp; Infrastructure</label>
+              <label><input type="checkbox" value="MF" onchange="updateOppFilters()"> Mechanical &amp; Fabrication</label>
+              <label><input type="checkbox" value="EA" onchange="updateOppFilters()"> Electrical &amp; Automation</label>
+              <label><input type="checkbox" value="ALM" onchange="updateOppFilters()"> Asset &amp; Lifecycle Mgmt</label>
+            </div>
+          </div>
+
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Prioritization</div>
+            <div class="opp-multi" id="fmulti-prio">
+              <label><input type="checkbox" value="High"   onchange="updateOppFilters()"> High (≥71%)</label>
+              <label><input type="checkbox" value="Medium" onchange="updateOppFilters()"> Medium (51–70%)</label>
+              <label><input type="checkbox" value="Low"    onchange="updateOppFilters()"> Low (0–50%)</label>
+            </div>
+          </div>
+
+          <!-- Column 2: Where / How -->
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Country</div>
+            <div class="opp-multi" id="fmulti-country">
+              <!-- populated dynamically from live deal data -->
+            </div>
+          </div>
+
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Risk Signals</div>
+            <div class="opp-multi" id="fmulti-risks">
+              <!-- populated dynamically from RISKS constant -->
+            </div>
+          </div>
+
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Deal Source</div>
+            <div class="opp-multi" id="fmulti-src">
+              <label><input type="checkbox" value="B2B (Private)"                            onchange="updateOppFilters()"> B2B — Business to Business</label>
+              <label><input type="checkbox" value="B2D (Strategic Partnership)"              onchange="updateOppFilters()"> B2D — Strategic Partnership</label>
+              <label><input type="checkbox" value="B2C (Business to Customer)"               onchange="updateOppFilters()"> B2C — Business to Customer</label>
+              <label><input type="checkbox" value="B2G (Public)"                             onchange="updateOppFilters()"> B2G — Business to Government</label>
+            </div>
+          </div>
+
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Procurement Route</div>
+            <div class="opp-multi" id="fmulti-origin">
+              <label><input type="checkbox" value="Direct Request / Closed"         onchange="updateOppFilters()"> Direct Request</label>
+              <label><input type="checkbox" value="Open Tender /Qualification"      onchange="updateOppFilters()"> Open Tender</label>
+              <label><input type="checkbox" value="Single Sourced Bid / Negotiation" onchange="updateOppFilters()"> Single Source</label>
+              <label><input type="checkbox" value="Restricted Tender / Proposal"    onchange="updateOppFilters()"> Restricted Tender</label>
+            </div>
+          </div>
+
+          <!-- Column 3: Stage / Range -->
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Deal Stage</div>
+            <div class="opp-multi" id="fmulti-stage">
+              <label><input type="checkbox" value="Lead Generation"                         onchange="updateOppFilters()"> Lead Generation</label>
+              <label><input type="checkbox" value="Demo/Meeting or Site Visit"              onchange="updateOppFilters()"> Demo / Meeting</label>
+              <label><input type="checkbox" value="Proposal Development"                    onchange="updateOppFilters()"> Proposal Development</label>
+              <label><input type="checkbox" value="Proposal submitted awating feedback"     onchange="updateOppFilters()"> Proposal Submitted</label>
+              <label><input type="checkbox" value="Active negotiation"                      onchange="updateOppFilters()"> Active Negotiation</label>
+              <label><input type="checkbox" value="Contract negotiation"                    onchange="updateOppFilters()"> Contract Negotiation</label>
+              <label><input type="checkbox" value="Supplied"                                 onchange="updateOppFilters()"> Supplied</label>
+              <label><input type="checkbox" value="Signed and Started"                      onchange="updateOppFilters()"> Signed and Started</label>
+            </div>
+          </div>
+
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Project Stage</div>
+            <div class="opp-multi" id="fmulti-projstage">
+              <optgroup-label style="display:block;font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1a5c38;padding:4px 0 2px">DEVELOP</optgroup-label>
+              <label><input type="checkbox" value="Concept Development"                    onchange="updateOppFilters()"> Concept Development</label>
+              <label><input type="checkbox" value="Detailed Feasibility"                   onchange="updateOppFilters()"> Detailed Feasibility</label>
+              <label><input type="checkbox" value="Structuring & Financing"                onchange="updateOppFilters()"> Structuring &amp; Financing</label>
+              <optgroup-label style="display:block;font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1a3f8a;padding:6px 0 2px">DELIVER</optgroup-label>
+              <label><input type="checkbox" value="Planning Monitoring & Controls"         onchange="updateOppFilters()"> Planning &amp; Controls</label>
+              <label><input type="checkbox" value="Design Development"                     onchange="updateOppFilters()"> Design Development</label>
+              <label><input type="checkbox" value="Procurement"                            onchange="updateOppFilters()"> Procurement</label>
+              <label><input type="checkbox" value="Construction & Installation"            onchange="updateOppFilters()"> Construction &amp; Installation</label>
+              <optgroup-label style="display:block;font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#5a1a7a;padding:6px 0 2px">SUSTAIN</optgroup-label>
+              <label><input type="checkbox" value="Commissioning & Handover"              onchange="updateOppFilters()"> Commissioning &amp; Handover</label>
+              <label><input type="checkbox" value="Operations & Maintenance"              onchange="updateOppFilters()"> Operations &amp; Maintenance</label>
+              <label><input type="checkbox" value="Decommissioning"                       onchange="updateOppFilters()"> Decommissioning</label>
+            </div>
+          </div>
+
+          <div class="opp-filter-group">
+            <div class="opp-filter-label">Win Probability</div>
+            <div class="opp-range-row">
+              <span class="opp-range-lbl">Min</span>
+              <input type="range" id="frange-prob-lo" min="0" max="100" step="5" value="0"
+                oninput="document.getElementById('frange-prob-lo-v').textContent=this.value+'%';updateOppFilters()">
+              <span class="opp-range-val" id="frange-prob-lo-v">0%</span>
+            </div>
+            <div class="opp-range-row">
+              <span class="opp-range-lbl">Max</span>
+              <input type="range" id="frange-prob-hi" min="0" max="100" step="5" value="100"
+                oninput="document.getElementById('frange-prob-hi-v').textContent=this.value+'%';updateOppFilters()">
+              <span class="opp-range-val" id="frange-prob-hi-v">100%</span>
+            </div>
+          </div>
+
+        </div>
+        <div class="opp-filter-footer">
+          <span id="opp-active-filters" style="font-size:11px;color:var(--ink4)"></span>
+          <button class="btn" onclick="clearOppFilters()" style="font-size:11px">Clear all filters</button>
+        </div>
+      </div>
+      <div id="opp-active-chips" class="opp-active-chips"></div>
+      <div id="opp-view-table" style="overflow-x:auto">
+        <table class="tbl" id="deals-tbl">
+          <thead><tr>
+            <th style="width:6px;padding:0"></th>
+            <th style="min-width:200px">Opportunity</th>
+            <th>Stage</th>
+            <th>Project Stage</th>
+            <th>Portfolio</th>
+            <th>Value (KSH)</th>
+            <th>Prob</th>
+            <th>Owner</th>
+            <th>Status</th>
+            <th class="hide-md">Country</th>
+            <th style="width:56px"></th>
+          </tr></thead>
+          <tbody id="deals-tbody"></tbody>
+        </table>
+        <div class="empty" id="deals-empty" style="display:none">
+          <div style="font-size:28px;opacity:.2;margin-bottom:10px">🔍</div>
+          <div style="font-size:13px;font-weight:600;color:var(--ink3);margin-bottom:4px">No opportunities match your filters</div>
+          <div style="font-size:12px;color:var(--ink4)">Try adjusting or <span style="color:var(--green);cursor:pointer;text-decoration:underline" onclick="clearOppFilters()">clearing all filters</span></div>
+        </div>
+      </div>
+      <div id="opp-view-kanban" style="display:none"><div class="kanban-board" id="kanban-board"></div></div>
+      <div id="opp-view-cards" style="display:none"><div class="opp-cards-grid" id="opp-cards-grid"></div></div>
+      <div class="opp-summary-bar" id="opp-summary-bar">
+        <span id="osb-count">—</span>
+        <span class="opp-summary-sep">·</span>
+        <span>Total: <strong id="osb-total">—</strong></span>
+        <span class="opp-summary-sep">·</span>
+        <span>Weighted: <strong id="osb-wv">—</strong></span>
+        <span class="opp-summary-sep">·</span>
+        <span>Avg probability: <strong id="osb-prob">—</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD DEAL -->
+  <div class="page" id="pg-add">
+    <div class="pg-header">
+      <span class="pg-hd-icon">＋</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title" id="form-page-title">New Deal</div>
+        <div class="pg-hd-sub" id="form-page-sub">All fields marked ✱ are required</div>
+      </div>
+      <div class="pg-hd-action">
+        <button class="btn" onclick="cancelForm()" style="font-size:11px;padding:5px 11px">Cancel</button>
+      </div>
+    </div>
+    <div class="page-body">
+    <div class="form-wrap">
+
+      <!-- ══ SECTION 1: DEAL ESSENTIALS ══ -->
+      <div class="fsec">
+        <div class="fsec-t">Deal Essentials</div>
+        <div class="fg">
+
+          <div class="fgrp span2">
+            <label class="fl">Deal Name <span class="req">✱</span></label>
+            <input class="fi" id="f-name" type="text" placeholder="e.g. Client Site A Terminal Feasibility Study" autocomplete="off">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Client / Organisation <span class="req">✱</span></label>
+            <input class="fi" id="f-client" type="text" placeholder="Organisation name" autocomplete="off">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Deal Owner <span class="req">✱</span></label>
+            <select class="fi fi-sel" id="f-owner">
+              <option value="">Select owner…</option>
+              <option>Adan Ali</option>
+              <option>Adil Dean</option>
+              <option>Allan Kweli</option>
+              <option>Benedette Marigi</option>
+              <option>Bhushan Patil</option>
+              <option>Bredah Nzuki</option>
+              <option>Brian Asutsa</option>
+              <option>Daniel Kimani</option>
+              <option>Eng. Timothy Karanja</option>
+              <option>Felix Akama</option>
+              <option>John Wakahu</option>
+              <option>Jonathan Symekher</option>
+              <option>Joseph Fundice</option>
+              <option>Justus Kiio</option>
+              <option>Marvin Mutua</option>
+              <option>Mdu Hulbi</option>
+              <option>Nehemiah Yaa</option>
+              <option>Patricia Mumbi</option>
+              <option>Pauline Gitahi</option>
+              <option>Peter Matemu</option>
+              <option>Prudence Gakii</option>
+              <option>Stephen Kiarie</option>
+              <option>Stephen Mwai</option>
+              <option>Sua Mwikali</option>
+              <option>Winnie Ouma</option>
+              <option>Wycliffe Ariko</option>
+            </select>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Division <span class="req">✱</span></label>
+            <select class="fi fi-sel" id="f-div" onchange="updateSubdiv()">
+              <option value="">Select division…</option>
+              <option value="DM">Development Management</option>
+              <option value="CI">Civil &amp; Infrastructure</option>
+              <option value="MF">Mechanical &amp; Fabrication</option>
+              <option value="EA">Electrical &amp; Automation</option>
+              <option value="ALM">Asset &amp; Lifecycle Management</option>
+            </select>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Portfolio</label>
+            <select class="fi fi-sel" id="f-subdiv">
+              <option value="">Select division first…</option>
+            </select>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Country</label>
+            <select class="fi fi-sel" id="f-country">
+              <option value="">Select country…</option>
+              <option>Kenya</option><option value="Somalia/Somaliland">Somalia / Somaliland</option>
+              <option>Djibouti</option><option>DRC</option><option>Tanzania</option><option>Uganda</option>
+              <option>Rwanda</option><option>Zambia</option><option>Mozambique</option><option>Ethiopia</option>
+              <option>South Sudan</option><option>Namibia</option><option>Botswana</option><option>Lesotho</option>
+              <option>Malawi</option><option>Angola</option><option value="South Africa">South Africa</option>
+            </select>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ SECTION 2: DEAL STATUS & STAGE ══ -->
+      <div class="fsec">
+        <div class="fsec-t">Deal Status &amp; Stage</div>
+        <div class="fg">
+
+          <div class="fgrp">
+            <label class="fl">Deal Stage <span class="req">✱</span></label>
+            <select class="fi fi-sel" id="f-dealstage" onchange="calcProb()">
+              <option value="">Select stage…</option>
+              <option value="Lead Generation">Lead Generation</option>
+              <option value="Demo/Meeting or Site Visit">Demo / Meeting or Site Visit</option>
+              <option value="Proposal Development">Proposal Development</option>
+              <option value="Proposal submitted awating feedback">Proposal Submitted — Awaiting Feedback</option>
+              <option value="Active negotiation">Active Negotiation</option>
+              <option value="Contract negotiation">Contract Negotiation</option>
+              <option value="Supplied">Supplied</option>
+              <option value="Signed and Started">Signed and Started</option>
+            </select>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Status <span class="req">✱</span></label>
+            <select class="fi fi-sel" id="f-status" onchange="calcProb();toggleLossReason();toggleWonAlloc()">
+              <option value="">Select…</option>
+              <option value="Open">Open</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Won">Won</option>
+              <option value="Lost">Lost</option>
+            </select>
+          </div>
+
+          <!-- Loss reason — shown only when status = Lost -->
+          <div class="fgrp" id="fgrp-loss-reason" style="display:none">
+            <label class="fl">Loss Reason <span style="color:var(--red)">*</span></label>
+            <select class="fi fi-sel" id="f-loss-reason">
+              <option value="">Select reason…</option>
+              <option value="Price — too expensive">Price — too expensive</option>
+              <option value="Competitor won">Competitor won</option>
+              <option value="No budget">No budget / budget cut</option>
+              <option value="Scope mismatch">Scope mismatch</option>
+              <option value="No decision">Client made no decision</option>
+              <option value="Relationship">Relationship / incumbent preferred</option>
+              <option value="Timing">Timing — project deferred</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <!-- Won division allocation — shown only when status = Won -->
+          <div id="fgrp-won-alloc" style="display:none;grid-column:1/-1;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-top:4px">
+            <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+              <span>🏆</span> Division Value Allocation
+              <span style="font-size:9px;font-weight:400;color:var(--ink4);margin-left:4px">Allocate the contract value across contributing divisions. Total must equal contract value.</span>
+            </div>
+            <div class="div-alloc-grid" style="gap:8px;margin-bottom:10px">
+              <div>
+                <label style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">DM</label>
+                <input class="fi" id="f-alloc-dm" type="number" min="0" step="1000" placeholder="0" oninput="updateAllocTotal()" style="font-size:11px;padding:5px 8px">
+              </div>
+              <div>
+                <label style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">CI</label>
+                <input class="fi" id="f-alloc-ci" type="number" min="0" step="1000" placeholder="0" oninput="updateAllocTotal()" style="font-size:11px;padding:5px 8px">
+              </div>
+              <div>
+                <label style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">MF</label>
+                <input class="fi" id="f-alloc-mf" type="number" min="0" step="1000" placeholder="0" oninput="updateAllocTotal()" style="font-size:11px;padding:5px 8px">
+              </div>
+              <div>
+                <label style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">EA</label>
+                <input class="fi" id="f-alloc-ea" type="number" min="0" step="1000" placeholder="0" oninput="updateAllocTotal()" style="font-size:11px;padding:5px 8px">
+              </div>
+              <div>
+                <label style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">ALM</label>
+                <input class="fi" id="f-alloc-alm" type="number" min="0" step="1000" placeholder="0" oninput="updateAllocTotal()" style="font-size:11px;padding:5px 8px">
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;padding-top:8px;border-top:1px solid var(--bd)">
+              <span style="color:var(--ink4)">Allocated: <strong id="alloc-total-display" style="font-family:var(--mono)">KSH 0</strong></span>
+              <span id="alloc-balance-display" style="font-family:var(--mono);font-weight:700;color:var(--ink4)">Contract value: KSH 0</span>
+              <span id="alloc-status-msg" style="font-size:9px;color:var(--ink4)">Enter contract value above first</span>
+            </div>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Project Stage (PDM)</label>
+            <select class="fi fi-sel" id="f-projstage">
+              <option value="">Select project stage…</option>
+              <option value="Concept Development">Concept Development</option>
+              <option value="Detailed Feasibility">Detailed Feasibility</option>
+              <option value="Structuring &amp; Financing">Structuring &amp; Financing</option>
+              <option value="Planning Monitoring &amp; Controls">Planning, Monitoring &amp; Controls</option>
+              <option value="Design Development">Design Development</option>
+              <option value="Procurement">Procurement</option>
+              <option value="Construction &amp; Installation">Construction &amp; Installation</option>
+              <option value="Commissioning &amp; Handover">Commissioning &amp; Handover</option>
+              <option value="Operations &amp; Maintenance">Operations &amp; Maintenance</option>
+              <option value="Decommissioning">Decommissioning</option>
+            </select>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Deal Source</label>
+            <select class="fi fi-sel" id="f-src">
+              <option value="">Select source…</option>
+              <option value="B2B (Private)">B2B — Business to Business</option>
+              <option value="SP (Strategic Partnership)">SP — Strategic Partnership</option>
+              <option value="B2C (Business to Customer)">B2C — Business to Customer</option>
+              <option value="B2G (Public)">B2G — Business to Government</option>
+            </select>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ SECTION 3: COMMERCIAL DETAILS ══ -->
+      <div class="fsec">
+        <div class="fsec-t">Commercial Details</div>
+        <div class="fg">
+
+          <div class="fgrp">
+            <label class="fl">Estimated Value (KSH)</label>
+            <input class="fi" id="f-val" type="number" placeholder="0" min="0" step="1000" oninput="calcProb();updateAllocTotal()">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Prioritization <span style="font-size:9px;font-weight:600;color:var(--green);margin-left:4px;font-family:var(--mono)">AUTO</span></label>
+            <div class="fi" style="display:flex;align-items:center;gap:8px;background:var(--s2);cursor:default;border-color:var(--bd2)">
+              <span id="fp-prio" style="font-weight:700;font-size:13px;color:var(--ink3)">—</span>
+              <span style="font-size:9px;color:var(--ink4)">computed from probability</span>
+            </div>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Procurement Route</label>
+            <select class="fi fi-sel" id="f-origin">
+              <option value="">Select route…</option>
+              <option value="Direct Request / Closed">Direct Request / Closed</option>
+              <option value="Open Tender /Qualification">Open Tender / Qualification</option>
+              <option value="Single Sourced Bid / Negotiation">Single Sourced Bid / Negotiation</option>
+              <option value="Restricted Tender / Proposal">Restricted Tender / Proposal</option>
+            </select>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Project Duration</label>
+            <input class="fi" id="f-dur" type="text" placeholder="e.g. 6 months, 18 months">
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ SECTION 4: TIMELINE ══ -->
+      <div class="fsec">
+        <div class="fsec-t">Timeline</div>
+        <div class="fg">
+
+          <div class="fgrp">
+            <label class="fl">Deal Entry Date</label>
+            <input class="fi" id="f-entry" type="date">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Proposal Submission Date</label>
+            <input class="fi" id="f-prop" type="date">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Estimated Start Date</label>
+            <input class="fi" id="f-start" type="date">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Sign-off / Close Date</label>
+            <input class="fi" id="f-sign" type="date">
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ SECTION 5: PROBABILITY SCORING ══ -->
+      <div class="fsec">
+        <div class="fsec-t">Probability Scoring
+          <span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink4);margin-left:8px">Probability = Likelihood (T) × Stage Progress (U)</span>
+        </div>
+
+        <!-- Live summary strip -->
+        <div class="form-summary-strip" style="gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;margin-bottom:16px">
+          <div style="background:var(--s2);padding:14px 16px;text-align:center">
+            <div id="fp-prob" style="font-family:var(--serif);font-size:26px;font-style:italic;color:var(--green);line-height:1">—</div>
+            <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink4);margin-top:5px">Probability</div>
+          </div>
+          <div style="background:var(--s2);padding:14px 16px;text-align:center">
+            <div id="fp-lk" style="font-family:var(--serif);font-size:26px;font-style:italic;color:var(--ink2);line-height:1">—</div>
+            <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink4);margin-top:5px">Likelihood (T)</div>
+          </div>
+          <div style="background:var(--s2);padding:14px 16px;text-align:center">
+            <div id="fp-sp" style="font-family:var(--serif);font-size:26px;font-style:italic;color:var(--ink2);line-height:1">—</div>
+            <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink4);margin-top:5px">Stage Progress (U)</div>
+          </div>
+        </div>
+
+        <!-- Likelihood composite bar -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:10px;font-weight:600;color:var(--ink3)">Deal Likelihood — T = V + W + X + Y (max 1.00)</span>
+          </div>
+          <div style="height:6px;background:var(--s3);border-radius:3px;overflow:hidden;border:1px solid var(--bd)">
+            <div id="bar-lk" style="height:100%;width:0%;border-radius:3px;transition:width .3s,background .3s"></div>
+          </div>
+        </div>
+
+        <!-- Four sub-scores -->
+        <div class="fg">
+
+          <div class="fgrp">
+            <label class="fl">Deal Attributes (V) <span class="prob-weight">max 0.60</span></label>
+            <select class="fi fi-sel" id="sl-at" onchange="calcProb()"></select>
+            <div style="margin-top:4px;height:3px;background:var(--s3);border-radius:2px;overflow:hidden">
+              <div id="bar-at" style="height:100%;width:0%;transition:width .3s,background .3s"></div>
+            </div>
+            <div class="prob-desc">Origin · Budget · Buying centre · Project fit</div>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Engagement &amp; Timing (W) <span class="prob-weight">max 0.25</span></label>
+            <select class="fi fi-sel" id="sl-en" onchange="calcProb()"></select>
+            <div style="margin-top:4px;height:3px;background:var(--s3);border-radius:2px;overflow:hidden">
+              <div id="bar-en" style="height:100%;width:0%;transition:width .3s,background .3s"></div>
+            </div>
+            <div class="prob-desc">Engagement level · Start date · Project duration</div>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Historical Success (X) <span class="prob-weight">max 0.10</span></label>
+            <select class="fi fi-sel" id="sl-hi" onchange="calcProb()"></select>
+            <div style="margin-top:4px;height:3px;background:var(--s3);border-radius:2px;overflow:hidden">
+              <div id="bar-hi" style="height:100%;width:0%;transition:width .3s,background .3s"></div>
+            </div>
+            <div class="prob-desc">Track record with client or on similar sector projects (max 0.10)</div>
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Competitor Landscape (Y) <span class="prob-weight">max 0.05</span></label>
+            <select class="fi fi-sel" id="sl-co" onchange="calcProb()"></select>
+            <div style="margin-top:4px;height:3px;background:var(--s3);border-radius:2px;overflow:hidden">
+              <div id="bar-co" style="height:100%;width:0%;transition:width .3s,background .3s"></div>
+            </div>
+            <div class="prob-desc">Sole bidder = 0.05 · Moderate = 0.025 · 4+ competitors = 0.00</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ SECTION 6: CLIENT CONTACT ══ -->
+      <div class="fsec">
+        <div class="fsec-t">Client Contact</div>
+        <div class="fg">
+
+          <div class="fgrp">
+            <label class="fl">Contact Name</label>
+            <input class="fi" id="f-contact" type="text" placeholder="Full name">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Phone</label>
+            <input class="fi" id="f-phone" type="text" placeholder="+254 7xx xxx xxx">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Role / Job Title</label>
+            <input class="fi" id="f-role" type="text" placeholder="e.g. Project Director">
+          </div>
+
+          <div class="fgrp">
+            <label class="fl">Buying Centre</label>
+            <select class="fi fi-sel" id="f-bc">
+              <option value="">Select…</option>
+              <option value="Decision maker">Decision Maker</option>
+              <option value="Influencer">Influencer</option>
+              <option value="Procurement/ Finance controller">Procurement / Finance Controller</option>
+              <option value="User">User</option>
+              <option value="Gatekeeper">Gatekeeper</option>
+              <option value="Any 2">Any 2</option>
+              <option value="Any 3">Any 3</option>
+              <option value="Any 4">Any 4</option>
+              <option value="All">All</option>
+            </select>
+          </div>
+
+          <div class="fgrp span2">
+            <label class="fl">BD Resource / Support</label>
+            <input class="fi" id="f-resource" type="text" placeholder="Names of BD support team members">
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ SECTION 7: NOTES ══ -->
+      <div class="fsec">
+        <div class="fsec-t">Notes &amp; Next Steps</div>
+        <div class="fg">
+          <div class="fgrp span2">
+            <label class="fl">Comments / Next Steps / Blockers</label>
+            <textarea class="fi fi-ta" id="f-comments" placeholder="Current status, next actions, key risks or blockers…" style="min-height:88px;resize:vertical"></textarea>
+          </div>
+        </div>
+
+        <!-- ══ RISK SIGNALS ══ -->
+        <div class="fg" style="margin-top:4px">
+          <div class="fgrp span2">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <label class="fl" style="margin-bottom:0">Risk Signals <span style="font-size:9px;font-weight:400;color:var(--ink4);margin-left:6px">Select all that apply to this deal</span></label>
+              <span id="f-risk-count" style="font-size:9px;font-weight:700;color:var(--red);display:none"></span>
+            </div>
+            <div id="f-risks-panel" style="display:grid;gap:0;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SUBMIT BAR ══ -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 0 10px;border-top:1px solid var(--bd);margin-top:4px">
+        <button class="btn" onclick="cancelForm()" style="color:var(--ink4)">Cancel</button>
+        <button class="btn btn-green" id="f-submit" onclick="submitDeal()" style="padding:9px 28px;font-size:12px">Save Deal →</button>
+      </div>
+
+    </div><!-- /form-wrap --></div><!-- /page-body -->
+  </div>
+
+  <!-- RISK SIGNALS -->
+  <div class="page" id="pg-risk">
+    <div class="pg-header">
+      <span class="pg-hd-icon">🔍</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Risk Analysis</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-risk">Portfolio risk · pipeline health · deal-level signals</div>
+      </div>
+      <div class="pg-hd-action"><button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button></div>
+    </div>
+    <div class="page-body">
+
+      <!-- KPIs -->
+      <div class="kg c4 mb12" id="risk-kpis"></div>
+
+      <!-- 1. Risk Frequency + Category -->
+      <div class="sec"><div class="sec-t">Portfolio Risk Overview</div><div class="sec-line"></div><span class="badge">Based on deal-level risk flags · a deal can carry multiple risks</span></div>
+      <div class="g21" style="align-items:stretch">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Risk Frequency</div><div class="card-note">How many deals carry each risk type · sorted by deal count</div></div>
+          <div class="card-body np" id="risk-freq-bars"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Risk by Category</div><div class="card-note">Total flags per risk group</div></div>
+          <div class="card-body" style="padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="position:relative;width:160px;height:160px"><canvas id="risk-cat-donut"></canvas></div>
+            <div id="risk-cat-legend" style="margin-top:14px;width:100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Top 4 Risk Quadrants -->
+      <div class="sec"><div class="sec-t">Deals by Top Risk</div><div class="sec-line"></div><span class="badge" id="risk-quad-badge">Top 4 most common risk types · deals listed per risk</span></div>
+      <div class="g4 mb12" id="risk-quad-grid"></div>
+
+      <!-- 3. High Risk Deals -->
+      <div class="sec"><div class="sec-t">High Risk Deals</div><div class="sec-line"></div><span class="badge" id="risk-highrisk-badge">—</span></div>
+      <div class="card mb12">
+        <div class="card-head"><div class="card-title">Deals with Multiple Risk Flags</div><div class="card-note">Sorted by risk count · weighted value · click to open</div></div>
+        <div class="card-body np" id="risk-highrisk-list"></div>
+      </div>
+
+      <!-- 3. Risk × Division + Risk × Geography -->
+      <div class="sec"><div class="sec-t">Risk Exposure</div><div class="sec-line"></div></div>
+      <div class="g2 mb12">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Risk × Division Matrix</div><div class="card-note">Deal count per risk type per division · intensity = relative exposure</div></div>
+          <div class="card-body np" id="risk-div-matrix"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Risk by Market</div><div class="card-note">Countries ranked by total risk flags · top 3 risks shown</div></div>
+          <div class="card-body np" id="risk-geo-list"></div>
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+
+  <!-- FOCUS MATRIX -->
+  <div class="page" id="pg-focus">
+    <div class="pg-header">
+      <span class="pg-hd-icon">🎯</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Focus Matrix</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-focus">Deal prioritization by value × probability</div>
+      </div>
+      <div class="pg-hd-action"><button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button></div>
+    </div>
+    <div class="page-body">
+      <div class="kg c4 mb12" id="focus-kpis"></div>
+
+      <!-- Quadrant deal tables — 4 columns — TOP -->
+      <div class="sec"><div class="sec-t">Deal Lists by Quadrant</div><div class="sec-line"></div></div>
+      <div class="g4 mb12">
+        <div class="card">
+          <div class="card-head" style="background:var(--green-bg);border-bottom:2px solid var(--green-bd)">
+            <div class="card-title" style="color:var(--green)">🏆 Win These</div>
+            <div class="card-note">High value · High prob</div>
+          </div>
+          <div class="card-body np" id="fo-prize-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head" style="background:var(--blue-bg);border-bottom:2px solid var(--blue-bd)">
+            <div class="card-title" style="color:var(--blue)">⚡ Close Soon</div>
+            <div class="card-note">Smaller · High prob</div>
+          </div>
+          <div class="card-body np" id="fo-quick-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head" style="background:var(--red-bg);border-bottom:2px solid var(--red-bd)">
+            <div class="card-title" style="color:var(--red)">🚨 Act Now</div>
+            <div class="card-note">High value · Low prob</div>
+          </div>
+          <div class="card-body np" id="fo-risk-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head" style="background:var(--amber-bg);border-bottom:2px solid var(--amber-bd)">
+            <div class="card-title" style="color:var(--amber)">🌱 Nurture</div>
+            <div class="card-note">Building momentum · Low priority</div>
+          </div>
+          <div class="card-body np" id="fo-review-list"></div>
+        </div>
+      </div>
+
+      <!-- Scatter full-width -->
+      <div class="sec"><div class="sec-t">Value vs Probability — All Active Deals</div><div class="sec-line"></div><span class="badge">Bubble size = deal value · Click any bubble to open deal</span></div>
+      <div class="card mb12">
+        <div class="card-head"><div class="card-title">Focus Matrix</div><div class="card-note">Top-right = Win These · Top-left = Act Now · Bottom-right = Close Soon</div></div>
+        <div class="card-body"><div class="cw" style="height:340px"><canvas id="focus-scatter"></canvas></div></div>
+      </div>
+
+      <!-- Probability dist + division gap -->
+      <div class="g2 mb12">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Probability Distribution</div><div class="card-note">Count of deals per probability band</div></div>
+          <div class="card-body"><div class="cw" style="height:190px"><canvas id="focus-hist"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Pipeline by Division</div><div class="card-note">Total declared value per division</div></div>
+          <div class="card-body"><div class="cw" style="height:190px"><canvas id="focus-gap"></canvas></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIN ANALYSIS -->
+  <div class="page" id="pg-winning">
+    <div class="pg-header">
+      <span class="pg-hd-icon">🏆</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Win Analysis</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-winning">Contracts won · division allocation · conversion performance</div>
+      </div>
+      <div class="pg-hd-action"><button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button></div>
+    </div>
+    <div class="page-body">
+
+      <!-- Row 1: KPIs -->
+      <div class="kg mb12" id="win-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap)"></div>
+
+      <!-- Row 2: Won contracts — full report list -->
+      <div class="sec"><div class="sec-t">Won Contracts</div><div class="sec-line"></div><span class="badge" id="win-won-badge">—</span></div>
+      <div class="card mb12">
+        <div class="card-head">
+          <div class="card-title">Contract Register</div>
+          <div class="card-note">Division value allocation · latest first · click row to open deal</div>
+        </div>
+        <div class="card-body np" id="win-contract-register"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SECTORS -->
+  <div class="page" id="pg-sectors">
+    <div class="pg-header">
+      <span class="pg-hd-icon">🏗️</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Sector Intelligence</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-sectors">Portfolio breakdown, value density and sector win rates</div>
+      </div>
+      <div class="pg-hd-action"><button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button></div>
+    </div>
+    <div class="page-body">
+
+      <!-- KPIs -->
+      <div class="kg c4 mb12" id="sec-kpis"></div>
+
+      <!-- Division tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="chip on" id="sec-tab-all" onclick="setSectorTab('all',this)">All Divisions</button>
+        <button class="chip" id="sec-tab-DM"  onclick="setSectorTab('DM',this)">Development Management</button>
+        <button class="chip" id="sec-tab-CI"  onclick="setSectorTab('CI',this)">Civil &amp; Infrastructure</button>
+        <button class="chip" id="sec-tab-MF"  onclick="setSectorTab('MF',this)">Mechanical &amp; Fabrication</button>
+        <button class="chip" id="sec-tab-EA"  onclick="setSectorTab('EA',this)">Electrical &amp; Automation</button>
+        <button class="chip" id="sec-tab-ALM" onclick="setSectorTab('ALM',this)">Asset &amp; Lifecycle</button>
+      </div>
+
+      <!-- Main sector table -->
+      <div class="card mb12">
+        <div class="card-head">
+          <div class="card-title">Portfolio Performance Matrix</div>
+          <div class="card-note" id="sec-badge">All Divisions</div>
+        </div>
+        <div class="card-body np" id="sec-table"></div>
+      </div>
+
+      <!-- Heatmap -->
+      <div class="card mb12">
+        <div class="card-head"><div class="card-title">Deal Stage Distribution by Portfolio</div><div class="card-note">Count of deals at each project stage · PDM phases</div></div>
+        <div class="card-body np" id="sec-stage-grid"></div>
+      </div>
+      <!-- Largest Open Deals -->
+      <div class="card mb12">
+        <div class="card-head"><div class="card-title">High Priority Deals</div><div class="card-note">Prioritized · sorted by weighted value · click to open</div></div>
+        <div class="card-body np" id="sec-top-deals"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GEOGRAPHY -->
+  <div class="page" id="pg-strategic-partnerships">
+    <div class="pg-header">
+      <span class="pg-hd-icon">📊</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Strategic Partnerships</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-strategic-partnerships">SP deals · pipeline · win rate · deal detail</div>
+      </div>
+      <div class="pg-hd-action"><button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button></div>
+    </div>
+    <div class="page-body" id="pg-strategic-partnerships-body"></div>
+  </div>
+
+  <div class="page" id="pg-origination">
+    <div class="pg-header">
+      <span class="pg-hd-icon">🔗</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Deal Origination</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-origination">B2B / B2G / B2C / SP breakdown</div>
+      </div>
+      <div class="pg-hd-action"><button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button></div>
+    </div>
+    <div class="page-body" id="pg-origination-body"></div>
+  </div>
+
+  <div class="page" id="pg-geography">
+    <div class="pg-header">
+      <span class="pg-hd-icon">🌍</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Beyond Kenya</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-geography">Cross-border pipeline · regional blocs · market intelligence</div>
+      </div>
+      <div class="pg-hd-action"><button class="btn btn-green" onclick="go('add',document.getElementById('nav-add'))" style="font-size:11px;padding:5px 11px">+ Log Deal</button></div>
+    </div>
+    <div class="page-body">
+
+      <!-- KPIs -->
+      <div class="kg c4 mb12" id="geo-kpis"></div>
+
+      <!-- Regional Blocs -->
+      <div class="sec"><div class="sec-t">Regional Blocs</div><div class="sec-line"></div><span class="badge">4 blocs · Lead &amp; BD per bloc · Active markets highlighted</span></div>
+      <div class="kg c4" style="gap:10px;margin-bottom:12px" id="geo-bloc-cards"></div>
+
+      <!-- Regional Bloc Deals — top of page after bloc cards -->
+      <div class="sec"><div class="sec-t">Regional Bloc Deals</div><div class="sec-line"></div><span class="badge">Open pipeline per bloc · sorted by value · click to open</span></div>
+      <div class="g4 mb12" id="geo-bloc-quadrants"></div>
+
+      <!-- Earned Revenue Overlay (finance ledger) -->
+      <div class="sec"><div class="sec-t">Earned Revenue — Beyond Kenya</div><div class="sec-line"></div><span class="badge">Finance's revenue ledger · by country · separate from pipeline value above</span></div>
+      <div class="card mb12" id="geo-revenue-overlay"></div>
+
+      <!-- Division Presence Heatmap + PDM Stage Matrix -->
+      <div class="sec"><div class="sec-t">Market Intelligence</div><div class="sec-line"></div></div>
+      <div class="g2" style="align-items:stretch">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Division Presence</div>
+            <div class="card-note">Which division is active in each market · coloured = has pipeline</div>
+          </div>
+          <div class="card-body np" id="geo-div-presence"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">PDM Stage Matrix</div>
+            <div class="card-note">Deal stage distribution by country · intensity = deal count</div>
+          </div>
+          <div class="card-body np" id="geo-stage-matrix"></div>
+        </div>
+      </div>
+
+      <!-- Market Health + Concentration -->
+      <div class="sec"><div class="sec-t">Market Exposure</div><div class="sec-line"></div></div>
+      <div class="g21" style="align-items:stretch">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Market Health</div>
+            <div class="card-note">Open · On Hold · Won · by country, sorted by pipeline value</div>
+          </div>
+          <div class="card-body np" id="geo-health-bars"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Pipeline Concentration</div>
+            <div class="card-note">Share of total pipeline by bloc</div>
+          </div>
+          <div class="card-body" style="display:flex;flex-direction:column;align-items:center;padding:20px 16px 16px">
+            <div style="position:relative;width:180px;height:180px;flex-shrink:0"><canvas id="geo-donut"></canvas></div>
+            <div id="geo-donut-legend" style="margin-top:14px;width:100%;max-width:220px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- REALIZED REVENUE -->
+  <div class="page" id="pg-revenue">
+    <div class="pg-header">
+      <span class="pg-hd-icon">📥</span>
+      <div class="pg-hd-body">
+        <div class="pg-hd-title">Revenue</div>
+        <div class="pg-hd-sub" id="pg-hd-sub-revenue">2026 · Invoices &amp; collections</div>
+      </div>
+      <div class="pg-hd-action" style="display:flex;gap:8px;align-items:center">
+        <button class="btn" onclick="document.getElementById('rv-xlsx-input').click()" style="font-size:11px;padding:5px 12px;background:var(--s2);border:1px solid var(--bd);color:var(--ink2)">⬆ Import Excel</button>
+        <input type="file" id="rv-xlsx-input" accept=".xlsx,.xls" style="display:none" onchange="rvImportExcel(this)">
+        <button class="btn btn-green" onclick="rvOpenForm(null)" style="font-size:11px;padding:5px 12px">+ Add Invoice</button>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- ── Summary banner ── -->
+      <div id="rv-summary-banner" class="mb12"></div>
+
+      <!-- ── 3 KPI cards ── -->
+      <div class="kg c3 mb12" id="rv-kpis"></div>
+
+      <!-- ── Quarterly progress ── -->
+      <div class="card mb12">
+        <div style="padding:14px 16px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <span class="card-title">Quarterly Progress</span>
+            <span class="card-note" style="margin-left:8px">How much has been earned each quarter vs the quarterly target</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="chip on" id="rv-qchip-all" onclick="rvSetQFilter('all')">All divisions</button>
+            <button class="chip"    id="rv-qchip-CI"  onclick="rvSetQFilter('CI')">Civil</button>
+            <button class="chip"    id="rv-qchip-MF"  onclick="rvSetQFilter('MF')">Mechanical</button>
+            <button class="chip"    id="rv-qchip-EA"  onclick="rvSetQFilter('EA')">Electrical</button>
+            <button class="chip"    id="rv-qchip-DM"  onclick="rvSetQFilter('DM')">Dev Mgmt</button>
+            <button class="chip"    id="rv-qchip-ALM" onclick="rvSetQFilter('ALM')">Asset &amp; LC</button>
+          </div>
+        </div>
+        <div id="rv-quarterly" style="padding:16px"></div>
+      </div>
+
+      <!-- ── Division progress ── -->
+      <div class="card mb12">
+        <div style="padding:14px 16px 12px;border-bottom:1px solid var(--bd)">
+          <span class="card-title">How each division is tracking</span>
+          <span class="card-note" style="margin-left:8px">Earned vs 2026 annual target</span>
+        </div>
+        <div id="rv-div-bars" style="padding:12px 16px 16px"></div>
+      </div>
+
+      <!-- ── Invoice list ── -->
+      <div class="card">
+        <div class="rv-toolbar">
+
+          <div class="rv-toolbar-top">
+            <span class="card-title">Invoice List</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="card-note" id="rv-table-badge">—</span>
+              <button id="rv-clear-btn" onclick="rvClearFilters()" style="display:none;align-items:center;gap:4px;font-size:9px;font-weight:700;color:var(--ink4);background:var(--s3);border:1px solid var(--bd);border-radius:20px;padding:3px 10px;cursor:pointer;transition:all .12s" onmouseover="this.style.background='var(--bd)';this.style.color='var(--ink)'" onmouseout="this.style.background='var(--s3)';this.style.color='var(--ink4)'">✕ Clear filters</button>
+            </div>
+          </div>
+
+          <!-- Row 1: Search + Status filter -->
+          <div class="rv-toolbar-controls" style="margin-bottom:8px">
+            <div class="rv-search-wrap">
+              <svg class="rv-search-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="6.5" cy="6.5" r="5"/><path d="M11 11l3.5 3.5"/></svg>
+              <input id="rv-search" class="rv-search-inp" placeholder="Search project, client, entity…" oninput="rvSetSearch(this.value)" autocomplete="off">
+              <button id="rv-search-clear" onclick="rvSetSearch('');this.parentNode.querySelector('input').value=''" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px;padding:2px">✕</button>
+            </div>
+            <div class="rv-chips">
+              <button class="chip on" id="rv-chip-all"     onclick="rvSetFilter('all')">All</button>
+              <button class="chip"    id="rv-chip-paid"    onclick="rvSetFilter('Paid')">✓ Paid</button>
+              <button class="chip"    id="rv-chip-pending" onclick="rvSetFilter('Pending')">⏳ Pending</button>
+              <button class="chip"    id="rv-chip-running" onclick="rvSetFilter('Running')">⚙ Running</button>
+            </div>
+          </div>
+
+          <!-- Row 2: Division · Quarter · Group · Sort -->
+          <div class="rv-toolbar-controls">
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+              <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink4)">Division</span>
+              <div class="rv-chips">
+                <button class="chip on" id="rv-dchip-all" onclick="rvSetDivFilter('all')">All</button>
+                <button class="chip"    id="rv-dchip-CI"  onclick="rvSetDivFilter('CI')">CI</button>
+                <button class="chip"    id="rv-dchip-MF"  onclick="rvSetDivFilter('MF')">MF</button>
+                <button class="chip"    id="rv-dchip-EA"  onclick="rvSetDivFilter('EA')">EA</button>
+                <button class="chip"    id="rv-dchip-DM"  onclick="rvSetDivFilter('DM')">DM</button>
+                <button class="chip"    id="rv-dchip-ALM" onclick="rvSetDivFilter('ALM')">ALM</button>
+              </div>
+            </div>
+
+            <select id="rv-quarter-sel" class="rv-sort-sel" onchange="rvSetQuarterFilter(this.value)" title="Filter by quarter">
+              <option value="all">All quarters</option>
+              <option value="Q1">Q1 — Jan to Mar</option>
+              <option value="Q2">Q2 — Apr to Jun</option>
+              <option value="Q3">Q3 — Jul to Sep</option>
+              <option value="Q4">Q4 — Oct to Dec</option>
+            </select>
+
+            <select id="rv-group-sel" class="rv-sort-sel" onchange="rvSetGroup(this.value)" title="Group by">
+              <option value="none">No grouping</option>
+              <option value="division">Group by division</option>
+              <option value="quarter">Group by quarter</option>
+              <option value="status">Group by status</option>
+              <option value="client">Group by client</option>
+              <option value="entity">Group by entity</option>
+            </select>
+
+            <select id="rv-sort-sel" class="rv-sort-sel" onchange="rvSetSort(this.value)" title="Sort by">
+              <option value="date-desc">Newest first</option>
+              <option value="date-asc">Oldest first</option>
+              <option value="amount-desc">Highest amount</option>
+              <option value="amount-asc">Lowest amount</option>
+              <option value="project">Project A–Z</option>
+              <option value="client">Client A–Z</option>
+              <option value="division">Division</option>
+              <option value="status">Status</option>
+              <option value="quarter">Quarter</option>
+            </select>
+          </div>
+
+        </div>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+          <table class="rv-table" style="width:100%">
+            <thead><tr id="rv-thead" class="rv-thead-row"></tr></thead>
+            <tbody id="rv-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /page-body -->
+  </div><!-- /pg-revenue -->
+    </div><!-- /pages -->
+
+  <!-- APP FOOTER -->
+  <div class="app-footer" id="app-footer">
+    <div class="af-left">
+      <span class="af-dot"></span>
+      <span id="af-count">—</span>
+      <span class="af-sep">·</span>
+      <span id="af-page-label" class="af-page">Overview</span>
+    </div>
+    <div class="af-center" style="font-size:9px;color:var(--ink4);font-family:var(--mono)">
+      Commercial Dashboard · 2026
+    </div>
+    <div class="af-right">
+      <span id="af-health" style="font-weight:700">—</span>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeMo()">
+  <div class="modal" id="modal-box" role="dialog" aria-modal="true"></div>
+</div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true">
+  <span id="t-ic">✓</span>&nbsp;<span id="t-msg"></span>
+</div>
+
+<script src="js/seed-data.js?v=60"></script>
+<script src="js/constants.js?v=60"></script>
+<script src="js/data.js?v=60"></script>
+<script src="js/health.js?v=60"></script>
+<!-- ── Excel Import Preview Modal ── -->
+<div id="rv-import-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);align-items:center;justify-content:center">
+  <div style="background:var(--s);border:1px solid var(--bd);border-radius:12px;width:min(900px,96vw);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <!-- Header -->
+    <div style="padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">📊</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:var(--ink)">Import Excel — Revenue Update</div>
+        <div style="font-size:10px;color:var(--ink4);margin-top:2px" id="rv-import-subtitle">Review changes before committing</div>
+      </div>
+      <button onclick="rvImportClose()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink4);padding:4px 8px">×</button>
+    </div>
+    <!-- Stats bar -->
+    <div id="rv-import-stats" style="padding:12px 20px;background:var(--s2);border-bottom:1px solid var(--bd);display:flex;gap:20px;font-size:10px;font-family:var(--mono)"></div>
+    <!-- Diff table -->
+    <div style="flex:1;overflow-y:auto;padding:0">
+      <div id="rv-import-diff" style="font-size:10px"></div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:14px 20px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px;justify-content:flex-end">
+      <span id="rv-import-warn" style="flex:1;font-size:10px;color:var(--amber);font-weight:600"></span>
+      <button onclick="rvImportClose()" style="padding:7px 16px;font-size:11px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;cursor:pointer;color:var(--ink2)">Cancel</button>
+      <button id="rv-import-commit-btn" onclick="rvImportCommit()" style="padding:7px 18px;font-size:11px;background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700">Commit Import</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/revenue-import.js?v=1"></script>
+<script src="js/navigation.js?v=60"></script>
+<script src="js/opportunities.js?v=60"></script>
+<script src="js/deal-modal.js?v=60"></script>
+<script src="js/deal-form.js?v=60"></script>
+<script src="js/charts.js?v=60"></script>
+<script src="js/pages.js?v=62"></script>
+<script src="js/ui.js?v=60"></script>
+<script src="js/exports.js?v=60"></script>
+<script>document.addEventListener("DOMContentLoaded",function(){if(typeof initForm==="function")setTimeout(initForm,80);});</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<?php
+// ═══════════════════════════════════════════════════════════
+//  Create a single user. CLI ONLY — refuses to run over HTTP.
+//  Copy to create_user.php, run once, then delete it.
+//
+//    php api/create_user.php "Name" name@example.com admin
+//
+//  Prompts for the password so it never lands in shell history,
+//  and never echoes it back.
+// ═══════════════════════════════════════════════════════════
+
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("This script may only be run from the command line.\n");
+}
+
+require_once __DIR__ . '/config.php';
+
+[$_, $name, $email, $role] = $argv + [null, null, null, 'editor'];
+if (!$name || !$email) {
+    exit("Usage: php api/create_user.php \"Full Name\" email@example.com [admin|editor|viewer]\n");
+}
+
+echo 'Password: ';
+shell_exec('stty -echo');
+$pw = trim(fgets(STDIN));
+shell_exec('stty echo');
+echo "\n";
+
+if (strlen($pw) < 12) exit("Password must be at least 12 characters.\n");
+
+$hash = password_hash($pw, PASSWORD_BCRYPT, ['cost' => 12]);
+db()->prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)
+               ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role)')
+    ->execute([$name, $email, $hash, $role]);
+
+echo "Created {$email} ({$role}).\n";
+echo "Delete this file from the server now.\n";

@@ -1,0 +1,17 @@
+# ═══════════════════════════════════════════════════════
+#  Commercial Dashboard API — Apache CORS configuration
+#  Allows the TV display (test.example.com)
+#  to fetch from this API (dashboard.example.com)
+# ═══════════════════════════════════════════════════════
+
+<IfModule mod_headers.c>
+    # Allow requests from any origin (TV display, dashboard, local dev)
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+
+    # Handle OPTIONS preflight — return 204 immediately
+    RewriteEngine On
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^ - [R=204,L]
+</IfModule>

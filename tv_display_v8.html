@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+<title>SDG · Commercial Intelligence TV · Light</title>
+<style>
+/* Font fallback system — replaces Google Fonts which may be blocked on server.
+   Outfit → 'DM Sans' system variant or clean geometric sans
+   IBM Plex Mono → 'Courier New' or system monospace
+   Instrument Serif → Georgia or system serif */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap');
+</style>
+<style id="font-fallback">
+/* Applied immediately — overridden by Google Fonts if they load */
+:root{
+  --font-ui: "Outfit", "DM Sans", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", "Fira Code", "Consolas", "Courier New", monospace;
+  --font-serif: "Instrument Serif", "Georgia", serif;
+}
+</style>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --em:#0d9488;
+  --sk:#64748b;
+  --am:#d97706;
+  --ro:#dc2626;
+  --vi:#7c3aed;
+  --or:#d97706;
+  /* Text — stronger opacity so readable on semi-transparent frosted card */
+  --t1:rgba(15,23,42,.92);
+  --t2:rgba(15,23,42,.78);
+  --t3:rgba(15,23,42,.52);
+  --t4:rgba(15,23,42,.12);
+  /* Glass — much lower alpha so photo bleeds through at ~66% */
+  --glass:rgba(248,250,252,.34);
+  --bd:rgba(255,255,255,.68);   /* border is now a bright white edge — catches overhead light */
+  --bd2:rgba(255,255,255,.85);
+  /* Blur: strong blur so the low-alpha card still reads as solid */
+  --blur:blur(60px) saturate(200%) brightness(1.12);
+  --r:14px;--rs:9px;--rxs:5px;
+  --c-dm:#0d9488;--c-ci:#64748b;--c-mf:#d97706;--c-ea:#7c3aed;
+  --shadow-col: rgba(30,40,60,.18);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:#d4dde8;font-family:var(--font-ui);cursor:none}
+
+/* Grain — multiply blend, slightly stronger since we want material feel on the visible photo */
+body::after{
+  content:"";position:fixed;inset:0;z-index:3;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity:.025;mix-blend-mode:multiply;
+}
+#cur{position:fixed;width:22px;height:22px;border:1.5px solid rgba(15,23,32,.25);border-radius:50%;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:9999;mix-blend-mode:multiply;
+  box-shadow:0 0 0 1px rgba(15,23,32,.06)}
+#cdot{position:fixed;width:4px;height:4px;background:var(--em);border-radius:50%;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:10000;
+  box-shadow:0 0 6px var(--em),0 0 12px rgba(13,148,136,.4)}
+.bg-img{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;
+  opacity:0;transition:opacity 7s cubic-bezier(.4,0,.2,1);
+  filter:brightness(1.14) saturate(0.80);
+  transform-origin:center center;will-change:transform,opacity,filter}
+.bg-img.on{opacity:1}
+.ov{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(180deg,
+      rgba(200,215,228,.65) 0%,
+      rgba(200,215,228,0) 12%,
+      rgba(200,215,228,0) 86%,
+      rgba(200,215,228,.65) 100%),
+    linear-gradient(90deg,
+      rgba(200,215,228,.35) 0%,
+      rgba(200,215,228,0) 6%,
+      rgba(200,215,228,0) 94%,
+      rgba(200,215,228,.35) 100%);
+  transition:opacity 2.8s cubic-bezier(.4,0,.2,1)}
+.ov.ambient{opacity:.15}
+
+/* ── SCALE-TO-FIT LAYOUT ──
+   #ui is always rendered at --design-w × --design-h (the intended TV size).
+   A JS scaler applies transform:scale(ratio) + translate to fit it into
+   whatever the actual viewport is — including when the browser zooms.
+   This means zoom-in makes everything proportionally smaller rather than
+   clipping cards. Same technique used by TV dashboards and kiosk displays.
+*/
+:root{
+  --design-w: 1600;
+  --design-h: 900;
+}
+#ui{
+  position:fixed;
+  left:0;top:0;
+  width:calc(var(--design-w) * 1px);
+  height:calc(var(--design-h) * 1px);
+  /* 3.2% of design width = proportional inset matching original layout */
+  padding:20px 52px 20px 52px;
+  z-index:20;
+  display:flex;flex-direction:column;gap:5px;
+  transform-origin:top left;
+  transition:opacity 2.8s cubic-bezier(.4,0,.2,1);
+  box-sizing:border-box;
+}
+#ui.ambient{opacity:0;pointer-events:none}
+body.ambient #cur,body.ambient #cdot{opacity:0;transition:opacity 1.5s ease}
+
+.g{
+  background:rgba(240,246,252,.20);
+  border:1px solid transparent;
+  border-top-color:rgba(255,255,255,.96);
+  border-left-color:rgba(255,255,255,.80);
+  border-bottom-color:rgba(255,255,255,.26);
+  border-right-color:rgba(255,255,255,.20);
+  backdrop-filter:blur(56px) saturate(180%) brightness(1.06);
+  -webkit-backdrop-filter:blur(56px) saturate(180%) brightness(1.06);
+  border-radius:var(--r);overflow:hidden;
+  box-shadow:
+    0 1px 3px rgba(20,30,50,.14),
+    0 4px 12px rgba(20,30,50,.11),
+    0 16px 40px rgba(20,30,50,.10),
+    0 40px 80px rgba(20,30,50,.08),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 1px 0 0 rgba(255,255,255,.72),
+    inset 0 -1px 0 rgba(255,255,255,.16),
+    inset -1px 0 0 rgba(255,255,255,.12);
+  position:relative;
+  transform:translateZ(0);
+  will-change:transform;
+}
+.g > *{position:relative;z-index:1;}
+/* .kc backdrop and shadow overrides defined in hover section below */
+
+/* ── EYEBROW LABEL ── */
+.pt{font-family:var(--font-mono);font-size:8px;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--t3);display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-shrink:0}
+.pt::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(15,23,42,.14),transparent)}
+
+/* KPI numbers — light mode: emboss shadow goes white above, grey below (raised on light surface) */
+.kv{font-weight:700;font-size:34px;line-height:1;letter-spacing:-.02em;
+  text-shadow:0 1px 0 rgba(255,255,255,.8),0 -1px 0 rgba(15,23,32,.08)}
+
+/* ── HEADER ── */
+.hdr{display:flex;align-items:center;padding:7px 18px;gap:11px;flex-shrink:0}
+.sdg-mark{width:30px;height:30px;border-radius:8px;flex-shrink:0;
+  background:rgba(13,148,136,.10);border:1px solid rgba(13,148,136,.30);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:9px;color:var(--em);letter-spacing:-.5px;
+  box-shadow:0 0 12px rgba(13,148,136,.12),inset 0 1px 0 rgba(255,255,255,.80)}
+.live-pill{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
+  background:rgba(13,148,136,.07);border:1px solid rgba(13,148,136,.22);
+  font-family:var(--font-mono);font-size:7px;letter-spacing:.12em;color:var(--em);text-transform:uppercase;
+  box-shadow:0 1px 4px rgba(13,148,136,.10)}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--em);
+  box-shadow:0 0 7px var(--em),0 0 12px rgba(13,148,136,.35);
+  animation:blink 2.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 7px var(--em),0 0 12px rgba(13,148,136,.35)}
+  50%{opacity:.15;transform:scale(.45);box-shadow:0 0 2px var(--em)}}
+.hdr-center{flex:1;text-align:center}
+.hdr-title{font-weight:700;font-size:13px;letter-spacing:.14em;color:var(--t1);text-transform:uppercase;line-height:1.35;
+  text-shadow:0 1px 0 rgba(255,255,255,.7)}
+.hdr-sub{font-family:var(--font-mono);font-size:7.5px;letter-spacing:.22em;color:var(--t3);text-transform:uppercase;margin-top:2px}
+.hdr-badge{font-family:var(--font-mono);font-size:7px;letter-spacing:.08em;color:var(--t2);
+  padding:3px 8px;border-radius:999px;background:rgba(15,23,32,.04);border:1px solid var(--bd)}
+.hdr-won{font-family:var(--font-mono);font-size:7.5px;letter-spacing:.08em;
+  padding:3px 9px;border-radius:999px;background:rgba(15,23,32,.04);border:1px solid var(--bd);color:var(--t2)}
+#clk{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.1em;color:var(--t1);font-weight:500;min-width:68px;text-align:right;
+  text-shadow:0 1px 0 rgba(255,255,255,.6)}
+
+/* ── KPI ROW ── */
+.kc{padding:13px 20px 11px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
+.kc-mid{text-align:center}
+.kc-mid .kc-glow{left:50%;right:auto;transform:translateX(-50%)}
+.kc-right{text-align:right}
+.kc-right .kc-glow{left:auto;right:-18px}
+/* Glow: subsurface colored bleed through the glass base — like the Nike widget colored pill glow */
+.kc-glow{position:absolute;width:220px;height:220px;border-radius:50%;top:-65px;right:-35px;
+  opacity:.10;pointer-events:none;filter:blur(40px)}
+/* Bottom accent: the "contact shadow" color-bleeds onto surface below — like LED rim light */
+.kc-line{position:absolute;bottom:0;left:0;right:0;height:1.5px;
+  filter:blur(.5px);opacity:.9}
+.ke{font-family:var(--font-mono);font-size:8px;letter-spacing:.26em;text-transform:uppercase;color:var(--t3);margin-bottom:7px}
+/* .kv defined above with text-shadow depth */
+.ksub{font-family:var(--font-mono);font-size:8px;color:var(--t3);margin-top:6px;letter-spacing:.04em;line-height:1.5}
+
+/* ── MAIN GRID ── */
+.main-grid{display:grid;grid-template-columns:1fr 1.9fr 1.28fr;gap:5px;flex:1;min-height:0}
+.left-col{display:flex;flex-direction:column;gap:5px;min-height:0}
+.centre-col{display:flex;flex-direction:column;gap:5px;min-height:0}
+.kr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;flex-shrink:0}
+
+/* LEFT COLUMN */
+.pn{padding:11px 13px;display:flex;flex-direction:column;overflow:hidden}
+
+/* Revenue: stacked meter — carved-in track, light mode */
+.rev-meter{height:6px;border-radius:999px;
+  background:rgba(15,23,32,.06);
+  box-shadow:inset 0 1px 2px rgba(15,23,32,.12),inset 0 0 0 1px rgba(15,23,32,.06);
+  overflow:hidden;margin-bottom:9px;flex-shrink:0;display:flex;gap:1px}
+.rev-seg{height:100%;transition:width 1.8s cubic-bezier(.16,1,.3,1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.40)}
+
+/* Revenue chips */
+.rev-chips{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:9px;flex-shrink:0}
+.rev-chip{padding:6px 7px;border-radius:var(--rxs);text-align:center;
+  border:1px solid rgba(255,255,255,.55);
+  background:rgba(255,255,255,.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.80)}
+.rc-label{font-family:var(--font-mono);font-size:7px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:4px;line-height:1}
+.rc-val{font-family:var(--font-mono);font-size:12px;font-weight:500;line-height:1}
+
+/* Revenue rows */
+.rev-rows{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.rev-row{display:flex;align-items:center;gap:7px}
+.rev-lbl{font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;width:52px;flex-shrink:0}
+.rev-track{flex:1;height:4px;
+  background:rgba(15,23,32,.06);
+  border-radius:999px;overflow:hidden;
+  box-shadow:inset 0 1px 2px rgba(15,23,32,.10),inset 0 0 0 1px rgba(15,23,32,.05)}
+.rev-fill{height:100%;border-radius:999px;transition:width 1.8s cubic-bezier(.16,1,.3,1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.rev-pct{font-family:var(--font-mono);font-size:8px;color:var(--t3);width:32px;text-align:right;flex-shrink:0}
+
+/* Deal origination */
+.src-grid{flex:1;display:flex;flex-direction:column;gap:7px;overflow:hidden;justify-content:center}
+.src-row{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.src-lbl{font-family:var(--font-mono);font-size:8.5px;font-weight:500;width:30px;flex-shrink:0;
+  text-transform:uppercase;letter-spacing:.1em}
+.src-track{flex:1;height:5px;
+  background:rgba(15,23,32,.06);border-radius:999px;overflow:hidden;
+  box-shadow:inset 0 1px 2px rgba(15,23,32,.10),inset 0 0 0 1px rgba(15,23,32,.05)}
+.src-bar{height:100%;border-radius:999px;transition:width 1.5s cubic-bezier(.16,1,.3,1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.src-right{font-family:var(--font-mono);font-size:8px;color:var(--t3);width:66px;text-align:right;flex-shrink:0;letter-spacing:.02em}
+
+/* Wins list */
+.wins-list{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.win-item{display:flex;align-items:center;gap:8px;padding:5.5px 0;
+  border-bottom:1px solid rgba(15,23,32,.06);flex-shrink:0}
+.win-item:last-child{border-bottom:none}
+.win-stripe{width:2.5px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:22px}
+.win-body{flex:1;min-width:0}
+.win-name{font-size:10px;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+.win-meta{font-family:var(--font-mono);font-size:7.5px;color:var(--t3);margin-top:2px;letter-spacing:.04em}
+.win-val{font-family:var(--font-mono);font-size:11px;font-weight:500;flex-shrink:0}
+
+/* PDM heatmap */
+.pdm-panel{flex:1.0;display:flex;flex-direction:column;overflow:hidden;padding:11px 13px}
+.pdm-phase-row{display:grid;gap:3px;margin-bottom:4px;flex-shrink:0}
+.pdm-phase-cell{font-family:var(--font-mono);font-size:7.5px;font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;text-align:center;padding:4px 2px;border-radius:4px;color:#020608}
+.pdm-table{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:3px}
+.pdm-row{display:grid;gap:2px;align-items:center}
+.pdm-header-row{padding-bottom:5px;border-bottom:1px solid rgba(15,23,32,.08);margin-bottom:1px}
+.pdm-hcell{font-family:var(--font-mono);font-size:6.5px;text-align:center;color:var(--t3);
+  letter-spacing:.06em;text-transform:uppercase;line-height:1.3}
+.pdm-dlbl{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-align:left;padding-left:2px;line-height:1}
+.pdm-cell-wrap{display:flex;align-items:center;justify-content:center}
+.pdm-tile{width:100%;max-width:30px;height:23px;border-radius:5px;margin:auto;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:9px;font-weight:700;color:#020608}
+.pdm-empty{width:100%;max-width:30px;height:23px;border-radius:5px;margin:auto;}
+
+/* PDM health tile colors — raised tile, light mode warm shadow */
+.pdm-tile-teal{background:rgba(13,148,136,.78);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 1px 4px rgba(13,148,136,.25)}
+.pdm-tile-amber{background:rgba(217,119,6,.70);box-shadow:inset 0 1px 0 rgba(255,255,255,.30),0 1px 4px rgba(217,119,6,.22)}
+.pdm-tile-red{background:rgba(220,38,38,.68);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 1px 4px rgba(220,38,38,.22)}
+.pdm-tile-count{font-family:var(--font-mono);font-size:9px;font-weight:700;color:#020608;line-height:1}
+.pdm-tile-val{font-family:var(--font-mono);font-size:6px;color:rgba(2,6,8,.65);line-height:1}
+
+/* PDM phase summary chips */
+.pdm-chips{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:9px;flex-shrink:0}
+.pdm-chip{border-radius:7px;padding:8px 10px;position:relative;overflow:hidden;flex-shrink:0}
+.pdm-chip::after{content:"";position:absolute;bottom:0;left:0;right:0;height:2px}
+.pdm-chip-develop{background:rgba(52,211,153,.09);border:1px solid rgba(52,211,153,.25)}.pdm-chip-develop::after{background:rgba(16,185,129,.60)}
+.pdm-chip-deliver{background:rgba(56,189,248,.09);border:1px solid rgba(56,189,248,.25)}.pdm-chip-deliver::after{background:rgba(14,165,233,.60)}
+.pdm-chip-sustain{background:rgba(167,139,250,.09);border:1px solid rgba(167,139,250,.25)}.pdm-chip-sustain::after{background:rgba(139,92,246,.60)}
+.pdm-chip-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px}
+.pdm-chip-name{font-family:var(--font-mono);font-size:7px;letter-spacing:.18em;text-transform:uppercase}
+.pdm-chip-split{font-family:var(--font-mono);font-size:7px;color:rgba(15,23,32,.28)}
+.pdm-chip-val{font-family:var(--font-mono);font-size:13px;font-weight:500;color:rgba(15,23,32,.82);line-height:1;margin-bottom:2px}
+.pdm-chip-sub{font-family:var(--font-mono);font-size:6.5px;color:rgba(15,23,32,.36)}
+.pdm-chip-bar{height:2.5px;background:rgba(15,23,32,.09);border-radius:999px;margin-top:5px;overflow:hidden}
+.pdm-chip-fill{height:100%;border-radius:999px}
+
+/* PDM won pill + legend */
+.pdm-won-pill{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:6.5px;letter-spacing:.1em;color:rgba(13,148,136,.80);text-transform:uppercase;background:rgba(13,148,136,.07);border:1px solid rgba(13,148,136,.18);border-radius:999px;padding:2px 7px}
+.pdm-won-dot{width:3.5px;height:3.5px;border-radius:50%;background:#0d9488}
+.pdm-legend{display:flex;gap:9px;align-items:center;margin-top:6px;flex-shrink:0;justify-content:space-between}
+.pdm-leg-grp{display:flex;gap:9px}
+.pdm-leg-item{display:flex;align-items:center;gap:4px}
+.pdm-leg-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.pdm-leg-lbl{font-family:var(--font-mono);font-size:6.5px;color:rgba(15,23,32,.32);letter-spacing:.05em}
+
+/* Highest value list */
+.hv-panel{flex:1;padding:9px 13px;display:flex;flex-direction:column;overflow:hidden}
+.hv-list{display:flex;flex-direction:column;flex:1;justify-content:space-between}
+.hv-item{display:flex;align-items:center;gap:7px;padding:5px 0;position:relative;
+  border-bottom:1px solid rgba(15,23,32,.06);overflow:hidden}
+.hv-item:last-child{border-bottom:none}
+.hv-bg{position:absolute;left:0;top:0;bottom:0;border-radius:3px;opacity:.08;pointer-events:none;
+  transition:width 1.8s cubic-bezier(.16,1,.3,1);
+  /* Gradient fill: stronger on left, fades right — like directional light */
+  background:linear-gradient(90deg,currentColor 0%,transparent 100%)}
+
+.hv-rank{font-family:var(--font-mono);font-size:8.5px;color:var(--t3);width:14px;flex-shrink:0;z-index:1}
+.hv-stripe{width:2.5px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:18px;z-index:1}
+.hv-body{flex:1;min-width:0;z-index:1}
+.hv-name{font-size:9.5px;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+.hv-meta{font-family:var(--font-mono);font-size:7.5px;color:var(--t3);margin-top:1px}
+.hv-val{font-family:var(--font-mono);font-size:11px;color:var(--t1);font-weight:500;flex-shrink:0;z-index:1}
+
+/* Ticker */
+.ticker-panel{flex-shrink:0;padding:6px 13px 7px}
+.ticker-wrap{overflow:hidden;position:relative;height:24px}
+.ticker-inner{display:flex;gap:30px;position:absolute;white-space:nowrap;animation:tick 200s linear infinite}
+.ticker-inner:hover{animation-play-state:paused}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tick-item{display:flex;align-items:center;gap:6px}
+.tick-dot{width:3.5px;height:3.5px;border-radius:50%;flex-shrink:0}
+.tick-div{font-family:var(--font-mono);font-size:8px;color:var(--t3);letter-spacing:.06em}
+.tick-name{font-size:10px;font-weight:600;color:var(--t2)}
+.tick-val{font-family:var(--font-mono);font-size:9px}
+.tick-pct{font-family:var(--font-mono);font-size:8px;color:var(--t3)}
+.tick-sep{width:1px;height:8px;background:rgba(15,23,32,.10);flex-shrink:0}
+
+/* RIGHT: Quadrants — each quad is a mini glass card within a glass card */
+.quads-panel{padding:11px 13px;display:flex;flex-direction:column;overflow:hidden}
+.quads-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;min-height:0}
+.quad{border-radius:var(--rs);padding:8px 10px;display:flex;flex-direction:column;overflow:hidden;position:relative;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 1px 6px rgba(30,40,60,.08)}
+.quad-accent{position:absolute;top:0;left:0;right:0;height:2px;filter:blur(.3px)}
+.quad-win{border:1px solid rgba(13,148,136,.22);background:rgba(13,148,136,.06)}
+.quad-close{border:1px solid rgba(100,116,139,.18);background:rgba(100,116,139,.05)}
+.quad-ace{border:1px solid rgba(217,119,6,.22);background:rgba(217,119,6,.06)}
+.quad-nurture{border:1px solid rgba(124,58,237,.18);background:rgba(124,58,237,.05)}
+.quad-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;flex-shrink:0;
+  padding-bottom:5px;border-bottom:1px solid rgba(15,23,32,.07)}
+.quad-label{font-family:var(--font-mono);font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;line-height:1}
+.quad-title{font-size:10.5px;font-weight:700;color:var(--t2);margin-top:3px;line-height:1}
+.quad-n{font-family:var(--font-mono);font-size:12px;color:var(--t3);flex-shrink:0;font-weight:500;padding-top:2px}
+.quad-body{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.qr{display:flex;align-items:center;gap:5px;padding:4px 0;
+  border-bottom:1px solid rgba(15,23,32,.05);flex-shrink:0}
+.qr:last-child{border-bottom:none}
+.qr-stripe{width:2px;border-radius:1px;flex-shrink:0;align-self:stretch;min-height:16px}
+.qr-body{flex:1;min-width:0}
+.qr-name{font-size:9px;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+.qr-meta{font-family:var(--font-mono);font-size:7px;color:var(--t3);margin-top:1px}
+.qr-right{text-align:right;flex-shrink:0;padding-left:4px}
+.qr-val{font-family:var(--font-mono);font-size:9.5px;color:var(--t1);font-weight:500;line-height:1}
+.qr-prob{font-family:var(--font-mono);font-size:7px;color:var(--t3);margin-top:1px}
+.qr-empty{font-family:var(--font-mono);font-size:8.5px;color:var(--t3);padding:6px 0;text-align:center;letter-spacing:.04em}
+
+/* Win stripe — colored edge accent like the left stripe on stone letter L */
+.win-stripe{width:2.5px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:22px;
+  box-shadow:0 0 6px currentColor;opacity:.85}
+
+/* HV stripe same treatment */
+.hv-stripe{width:2.5px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:18px;z-index:1;
+  box-shadow:0 0 5px currentColor;opacity:.80}
+
+/* QR stripe */
+.qr-stripe{width:2px;border-radius:1px;flex-shrink:0;align-self:stretch;min-height:16px;
+  box-shadow:0 0 4px currentColor;opacity:.75}
+.sayings-bar{flex-shrink:0;height:30px;display:flex;align-items:center;padding:0 18px;overflow:hidden;position:relative}
+.sayings-bar::before{content:"";position:absolute;top:0;left:18px;right:18px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(15,23,32,.09) 20%,rgba(15,23,32,.09) 80%,transparent)}
+.say-text{font-family:var(--font-serif);font-style:italic;font-size:13px;
+  color:rgba(15,23,32,.30);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center}
+
+/* ARTWORK LABEL — frosted white pill */
+.sl{position:fixed;bottom:11px;right:15px;z-index:40;text-align:right;opacity:0;transition:opacity 1.4s ease;
+  background:rgba(248,250,252,.45);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,.75);border-radius:6px;padding:5px 10px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.90),0 4px 14px rgba(30,40,60,.12)}
+.sl.show{opacity:1}
+.slt{font-family:var(--font-serif);font-style:italic;font-size:9.5px;color:rgba(15,23,32,.35)}
+.sly{font-family:var(--font-mono);font-size:7px;color:rgba(15,23,32,.22);margin-top:1px;letter-spacing:.06em}
+
+/* ENTRY ANIMATIONS — staggered rise + fade, like cards materializing from depth */
+@keyframes fu{from{opacity:0;transform:translateY(14px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+.g{animation:fu .65s both cubic-bezier(.22,1,.36,1)}
+.hdr.g{animation-delay:.02s}
+.kr3>*:nth-child(1){animation-delay:.09s}.kr3>*:nth-child(2){animation-delay:.16s}.kr3>*:nth-child(3){animation-delay:.23s}
+.left-col>*:nth-child(1){animation-delay:.26s}.left-col>*:nth-child(2){animation-delay:.32s}.left-col>*:nth-child(3){animation-delay:.38s}
+.pdm-panel{animation-delay:.29s}.hv-panel{animation-delay:.34s}.ticker-panel{animation-delay:.36s}
+.quads-panel{animation-delay:.40s}.sayings-bar{animation-delay:.44s}
+
+/* PDM chip depth — raised feel on light background */
+.pdm-chip{border-radius:7px;padding:8px 10px;position:relative;overflow:hidden;flex-shrink:0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 1px 4px rgba(30,40,60,.08)}
+.pdm-chip-bar{height:2.5px;
+  background:rgba(15,23,32,.08);
+  border-radius:999px;margin-top:5px;overflow:hidden;
+  box-shadow:inset 0 1px 2px rgba(15,23,32,.10)}
+
+/* ── INVERTED EMBOSS SYSTEM ──
+
+   RESTING STATE = pressed-in cavity (always looks like the reference images)
+   - Dark inset rim at all edges — material has been displaced inward
+   - Tight specular hot spot at cursor position (tracks --mx/--my)
+   - Slight scale-down and sink — card sits IN the surface
+   - Bright raised rim ring just outside the card boundary
+
+   HOVER STATE = card peels off and rises toward the viewer
+   - Scale up, translateY negative — lifts out of the surface
+   - Inset shadows release — cavity walls disappear
+   - Outer cast shadow deepens — card is now further from background
+   - Specular spreads from tight hot-spot to wide convex surface catch
+   - Border top/left brightens — card is now fully lit from above
+*/
+
+.g{
+  --mx:38%;--my:32%;
+  cursor:default;
+
+  /* RESTING: cavity — card is pressed into the inflated surface */
+  transform:translateZ(0) scale(.994) translateY(1px);
+  box-shadow:
+    0 0 0 1.5px rgba(255,255,255,.50),        /* bright raised rim — displaced material */
+    0 1px 2px rgba(20,30,50,.08),
+    0 2px 6px rgba(20,30,50,.07),
+    0 6px 18px rgba(20,30,50,.08),
+    0 0 28px rgba(255,255,255,.18),            /* outer material glow */
+    inset 0 2px 7px rgba(20,30,50,.20),        /* top cavity dark rim */
+    inset 2px 0 5px rgba(20,30,50,.12),        /* left cavity dark rim */
+    inset 0 -2px 7px rgba(20,30,50,.16),       /* bottom cavity dark rim */
+    inset -2px 0 5px rgba(20,30,50,.10),       /* right cavity dark rim */
+    inset 0 1px 0 rgba(255,255,255,.55),       /* top edge catches light even when pressed */
+    inset 1px 0 0 rgba(255,255,255,.35);
+
+  border-top-color:rgba(255,255,255,.72);
+  border-left-color:rgba(255,255,255,.56);
+  border-bottom-color:rgba(255,255,255,.20);
+  border-right-color:rgba(255,255,255,.16);
+
+  transition:
+    transform 420ms cubic-bezier(.22,1,.36,1),
+    box-shadow 420ms cubic-bezier(.22,1,.36,1),
+    border-top-color 300ms ease,
+    border-left-color 300ms ease;
+}
+
+/* HOVER: card lifts out — rises toward the viewer, releases from cavity */
+.g:hover{
+  transform:translateZ(0) scale(1.004) translateY(-3px);
+
+  box-shadow:
+    /* Cast shadow deepens — card is further from background now */
+    0 4px 8px rgba(20,30,50,.16),
+    0 10px 28px rgba(20,30,50,.14),
+    0 28px 60px rgba(20,30,50,.12),
+    0 48px 90px rgba(20,30,50,.08),
+    /* Inset walls release — cavity gone, card is floating free */
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 1px 0 0 rgba(255,255,255,.75),
+    inset 0 -1px 0 rgba(255,255,255,.18),
+    inset -1px 0 0 rgba(255,255,255,.14);
+
+  border-top-color:rgba(255,255,255,.96);      /* fully lit — card is raised into light */
+  border-left-color:rgba(255,255,255,.80);
+}
+
+/* RESTING ::before — tight specular hot spot at --mx/--my (cavity reflection) */
+.g::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 42% 36% at var(--mx) var(--my),rgba(255,255,255,.68) 0%,rgba(255,255,255,.22) 30%,rgba(255,255,255,0) 58%),
+    radial-gradient(ellipse 80% 70% at var(--mx) var(--my),rgba(255,255,255,.08) 0%,rgba(255,255,255,0) 70%);
+  border-radius:inherit;z-index:0;
+  transition:background 150ms ease;
+}
+
+/* HOVER ::before — wide convex surface catch spreads across card (lifted glass) */
+.g:hover::before{
+  background:
+    linear-gradient(142deg,rgba(255,255,255,.58) 0%,rgba(255,255,255,.18) 22%,rgba(255,255,255,0) 38%),
+    radial-gradient(ellipse 70% 60% at 38% 32%,rgba(255,255,255,.22) 0%,rgba(255,255,255,0) 70%);
+}
+
+/* RESTING ::after — deeper underside vignette (cavity bottom is in shadow) */
+.g::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(20,30,50,.05) 0%,rgba(20,30,50,.14) 100%);
+  border-radius:inherit;z-index:0;
+  transition:background 300ms ease;
+}
+
+/* HOVER ::after — underside lightens (card has lifted away from the dark pocket) */
+.g:hover::after{
+  background:linear-gradient(180deg,rgba(20,30,50,0) 60%,rgba(20,30,50,.055) 100%);
+}
+
+/* KPI cards: start at deeper cavity (they are heavier glass pressed in more) */
+.kc{
+  backdrop-filter:blur(64px) saturate(200%) brightness(1.10);
+  -webkit-backdrop-filter:blur(64px) saturate(200%) brightness(1.10);
+  transform:translateZ(0) scale(.992) translateY(2px);
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.55),
+    0 1px 2px rgba(20,30,50,.10),
+    0 3px 8px rgba(20,30,50,.09),
+    0 8px 22px rgba(20,30,50,.09),
+    0 0 32px rgba(255,255,255,.20),
+    inset 0 3px 9px rgba(20,30,50,.24),
+    inset 3px 0 6px rgba(20,30,50,.14),
+    inset 0 -3px 9px rgba(20,30,50,.18),
+    inset -3px 0 6px rgba(20,30,50,.12),
+    inset 0 1px 0 rgba(255,255,255,.60),
+    inset 1px 0 0 rgba(255,255,255,.40);
+}
+
+/* KPI hover: lifts higher than data cards — they have more mass to peel off */
+.kc:hover{
+  transform:translateZ(0) scale(1.006) translateY(-4px);
+  box-shadow:
+    0 6px 12px rgba(20,30,50,.18),
+    0 14px 36px rgba(20,30,50,.15),
+    0 36px 72px rgba(20,30,50,.12),
+    0 60px 110px rgba(20,30,50,.08),
+    inset 0 1px 0 rgba(255,255,255,.99),
+    inset 1px 0 0 rgba(255,255,255,.80),
+    inset 0 -1px 0 rgba(255,255,255,.14),
+    inset -1px 0 0 rgba(255,255,255,.10);
+}
+/* ══════════════════════════════════════════════════════
+   DARK THEME — activated by triple-click on LIVE pill
+   All overrides scoped to body.dark so a single class
+   swap flips the entire visual system cleanly.
+══════════════════════════════════════════════════════ */
+body,html{transition:background 900ms cubic-bezier(.4,0,.2,1)}
+
+body.dark{background:#020608;}
+
+body.dark #cur{
+  border-color:rgba(255,255,255,.22);
+  mix-blend-mode:difference;
+  box-shadow:0 0 0 1px rgba(255,255,255,.04);
+}
+body.dark #cdot{
+  background:#2dd4bf;
+  box-shadow:0 0 6px #2dd4bf,0 0 12px rgba(45,212,191,.5);
+}
+
+/* Photo filter: remove daylight bleach, restore cinematic darkness */
+body.dark .bg-img{
+  filter:none;
+}
+
+/* Overlay: dark mode washes to near-black at edges instead of near-white */
+body.dark .ov{
+  background:
+    linear-gradient(180deg,rgba(2,6,8,.94) 0%,rgba(2,6,8,0) 14%,rgba(2,6,8,0) 68%,rgba(2,6,8,.96) 100%),
+    radial-gradient(ellipse 70% 55% at 50% 46%,rgba(2,6,8,.08) 0%,rgba(2,6,8,.72) 100%),
+    radial-gradient(ellipse 60% 20% at 50% 100%,rgba(45,212,191,.04) 0%,transparent 70%);
+}
+body.dark .ov.ambient{opacity:.22;}
+
+/* CSS variable swap — all colour/text tokens flip to dark values */
+body.dark{
+  --em:#2dd4bf;--sk:#94a3b8;--am:#fbbf24;--ro:#f87171;--vi:#c084fc;--or:#fbbf24;
+  --t1:rgba(255,255,255,.96);--t2:rgba(255,255,255,.70);--t3:rgba(255,255,255,.42);--t4:rgba(255,255,255,.12);
+  --glass:rgba(4,10,14,.82);--bd:rgba(255,255,255,.10);--bd2:rgba(255,255,255,.18);
+  --c-dm:#2dd4bf;--c-ci:#94a3b8;--c-mf:#fbbf24;--c-ea:#c084fc;
+}
+
+/* Dark glass card — CAVITY resting state — reference-accurate depth
+   
+   From the black topographic reference:
+   - Ridge highlights: near-white, sharp, only on the very top edge
+   - Cavity floor: near-black, significantly darker than surrounding surface
+   - Rim outside card: bright white ring, the displaced material peak
+   - Contact shadow at card edge: extremely dark, tight
+
+   Key insight: the floor of the depression must be DARKER than the background.
+   We achieve this with backdrop-filter brightness(0.52) — aggressively dims
+   whatever photo is behind the card. The surrounding surface (body bg #020608)
+   stays at its natural darkness, so the card reads as pressed deeper into it.
+*/
+body.dark .g{
+  background:rgba(2,5,8,.92);
+  border:1px solid transparent;
+  border-top-color:rgba(255,255,255,.04);
+  border-left-color:rgba(255,255,255,.03);
+  border-bottom-color:rgba(0,0,0,.80);
+  border-right-color:rgba(0,0,0,.60);
+  /* Aggressive darkening: cavity floor is much darker than surroundings */
+  backdrop-filter:blur(48px) saturate(140%) brightness(0.52);
+  -webkit-backdrop-filter:blur(48px) saturate(140%) brightness(0.52);
+  transform:translateZ(0) scale(.993) translateY(1.5px);
+
+  box-shadow:
+    /* Outer rim: bright white raised ring — the displaced material peak.
+       This is the KEY element from image 1 — the ridge highlight. */
+    0 0 0 1.5px rgba(255,255,255,.22),
+    /* Tight contact shadow: dark crease between rim and surrounding surface */
+    0 0 0 3px rgba(0,0,0,.70),
+    /* Ambient: card has settled deeper than the surface */
+    0 2px 8px rgba(0,0,0,.80),
+    0 8px 24px rgba(0,0,0,.60),
+    /* Inset cavity walls — very dark, concentrated at edges.
+       These simulate the steep walls of the depression.
+       Spread 0, blur high = shadow bleeds inward from edges, not uniform fill. */
+    inset 0 4px 16px rgba(0,0,0,.90),
+    inset 4px 0 12px rgba(0,0,0,.70),
+    inset 0 -4px 16px rgba(0,0,0,.80),
+    inset -4px 0 12px rgba(0,0,0,.65),
+    /* Tiny bright catch on the very inner top edge — like the sharp ridge
+       highlight in image 1, but inside the cavity (reflected light from rim) */
+    inset 0 1px 0 rgba(255,255,255,.09),
+    inset 1px 0 0 rgba(255,255,255,.05);
+}
+
+/* Dark hover — lifts out, brightness restores, rim collapses, shadows deepen */
+body.dark .g:hover{
+  transform:translateZ(0) scale(1.004) translateY(-3px);
+  background:rgba(4,10,14,.82);
+  backdrop-filter:blur(48px) saturate(160%) brightness(0.78);
+  -webkit-backdrop-filter:blur(48px) saturate(160%) brightness(0.78);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,.50),
+    0 8px 28px rgba(0,0,0,.54),
+    0 24px 64px rgba(0,0,0,.32),
+    0 40px 80px rgba(0,0,0,.22),
+    inset 0 1px 0 rgba(255,255,255,.13),
+    inset 1px 0 0 rgba(255,255,255,.07),
+    inset 0 -1px 0 rgba(0,0,0,.36),
+    inset -1px 0 0 rgba(0,0,0,.18);
+  border-top-color:rgba(255,255,255,.20);
+  border-left-color:rgba(255,255,255,.13);
+  border-bottom-color:rgba(0,0,0,.35);
+  border-right-color:rgba(0,0,0,.20);
+}
+
+/* Dark ::before — almost no shimmer in cavity (light can't reach the floor).
+   Just a faint specular at cursor position — like light bouncing off the rim
+   and casting a reflected sliver onto the cavity floor. */
+body.dark .g::before{
+  background:
+    radial-gradient(ellipse 30% 25% at var(--mx) var(--my),rgba(255,255,255,.14) 0%,rgba(255,255,255,.04) 40%,rgba(255,255,255,0) 65%);
+}
+/* Dark hover ::before — full convex catch as card lifts into ambient light */
+body.dark .g:hover::before{
+  background:linear-gradient(135deg,rgba(255,255,255,.042) 0%,rgba(255,255,255,0) 45%,rgba(255,255,255,.008) 100%);
+}
+
+/* Dark ::after — heavy underside shadow (cavity is deep, floor is dark) */
+body.dark .g::after{
+  background:linear-gradient(180deg,rgba(0,0,0,.20) 0%,rgba(0,0,0,.55) 100%);
+}
+body.dark .g:hover::after{background:none;}
+
+/* Dark KPI cards — even deeper cavity (heavier glass, pressed further in) */
+body.dark .kc{
+  background:rgba(1,4,6,.95);
+  backdrop-filter:blur(48px) saturate(130%) brightness(0.44);
+  -webkit-backdrop-filter:blur(48px) saturate(130%) brightness(0.44);
+  transform:translateZ(0) scale(.991) translateY(2.5px);
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.26),            /* stronger rim — heavier mass displaced */
+    0 0 0 4px rgba(0,0,0,.75),
+    0 2px 8px rgba(0,0,0,.85),
+    0 8px 24px rgba(0,0,0,.65),
+    inset 0 5px 20px rgba(0,0,0,.95),
+    inset 5px 0 14px rgba(0,0,0,.78),
+    inset 0 -5px 20px rgba(0,0,0,.88),
+    inset -5px 0 14px rgba(0,0,0,.72),
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 1px 0 0 rgba(255,255,255,.06);
+}
+body.dark .kc:hover{
+  background:rgba(4,10,14,.82);
+  backdrop-filter:blur(48px) saturate(160%) brightness(0.78);
+  -webkit-backdrop-filter:blur(48px) saturate(160%) brightness(0.78);
+  transform:translateZ(0) scale(1.006) translateY(-4px);
+  box-shadow:
+    0 6px 12px rgba(0,0,0,.58),
+    0 14px 36px rgba(0,0,0,.52),
+    0 36px 72px rgba(0,0,0,.36),
+    0 60px 110px rgba(0,0,0,.22),
+    inset 0 1px 0 rgba(255,255,255,.13),
+    inset 1px 0 0 rgba(255,255,255,.07),
+    inset 0 -1px 0 rgba(0,0,0,.40),
+    inset -1px 0 0 rgba(0,0,0,.22);
+  border-top-color:rgba(255,255,255,.20);
+  border-left-color:rgba(255,255,255,.13);
+  border-bottom-color:rgba(0,0,0,.35);
+  border-right-color:rgba(0,0,0,.20);
+}
+
+/* Dark mode text corrections — dividers and borders back to white-alpha */
+body.dark .pt::after{background:linear-gradient(90deg,rgba(255,255,255,.10),transparent)}
+body.dark .win-item{border-bottom-color:rgba(255,255,255,.04)}
+body.dark .hv-item{border-bottom-color:rgba(255,255,255,.04)}
+body.dark .qr{border-bottom-color:rgba(255,255,255,.035)}
+body.dark .quad-hdr{border-bottom-color:rgba(255,255,255,.05)}
+body.dark .pdm-header-row{border-bottom-color:rgba(255,255,255,.06)}
+body.dark .tick-sep{background:rgba(255,255,255,.08)}
+body.dark .sayings-bar::before{background:linear-gradient(90deg,transparent,rgba(255,255,255,.09) 20%,rgba(255,255,255,.09) 80%,transparent)}
+body.dark .say-text{color:rgba(255,255,255,.28)}
+body.dark .rev-meter{background:rgba(255,255,255,.04);box-shadow:inset 0 1px 3px rgba(0,0,0,.6),inset 0 0 0 1px rgba(0,0,0,.3)}
+body.dark .rev-track{background:rgba(255,255,255,.04);box-shadow:inset 0 1px 2px rgba(0,0,0,.55),inset 0 0 0 1px rgba(0,0,0,.25)}
+body.dark .src-track{background:rgba(255,255,255,.05);box-shadow:inset 0 1px 2px rgba(0,0,0,.55),inset 0 0 0 1px rgba(0,0,0,.22)}
+body.dark .rev-chip{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.10);box-shadow:none}
+body.dark .quad-win{border-color:rgba(45,212,191,.16);background:rgba(45,212,191,.04)}
+body.dark .quad-close{border-color:rgba(148,163,184,.16);background:rgba(148,163,184,.04)}
+body.dark .quad-ace{border-color:rgba(251,191,36,.16);background:rgba(251,191,36,.04)}
+body.dark .quad-nurture{border-color:rgba(192,132,252,.16);background:rgba(192,132,252,.04)}
+body.dark .quad{box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 2px 8px rgba(0,0,0,.28)}
+body.dark .sl{background:rgba(4,10,14,.60);border-color:rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 4px 16px rgba(0,0,0,.4)}
+body.dark .slt{color:rgba(255,255,255,.22)}
+body.dark .sly{color:rgba(255,255,255,.12)}
+body.dark .pdm-chip{box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 1px 4px rgba(0,0,0,.30)}
+body.dark .pdm-chip-bar{background:rgba(255,255,255,.07);box-shadow:inset 0 1px 2px rgba(0,0,0,.40)}
+body.dark .pdm-leg-lbl{color:rgba(255,255,255,.26)}
+body.dark .pdm-won-pill{color:rgba(45,212,191,.65);background:rgba(45,212,191,.06);border-color:rgba(45,212,191,.15)}
+body.dark .pdm-won-dot{background:#2dd4bf}
+body.dark .hdr-badge{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.10)}
+body.dark .hdr-won{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.10)}
+body.dark .sdg-mark{background:rgba(45,212,191,.12);border-color:rgba(45,212,191,.28);box-shadow:none}
+body.dark .live-pill{background:rgba(45,212,191,.07);border-color:rgba(45,212,191,.20);box-shadow:none}
+body.dark .live-dot{background:#2dd4bf;box-shadow:0 0 8px #2dd4bf,0 0 14px rgba(45,212,191,.40)}
+body.dark .kv{text-shadow:0 1px 0 rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.3)}
+body.dark #clk{text-shadow:0 0 16px rgba(255,255,255,.15)}
+body.dark .hdr-title{text-shadow:0 0 20px rgba(255,255,255,.12)}
+
+
+/* Dark mode PDM fixes — text visibility */
+body.dark .pdm-phase-cell{color:rgba(255,255,255,.90);}
+body.dark .pdm-tile{color:#fff;}
+body.dark .pdm-tile-count{color:rgba(255,255,255,.95);}
+body.dark .pdm-tile-val{color:rgba(255,255,255,.65);}
+body.dark .pdm-chip-develop{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.30);}
+body.dark .pdm-chip-deliver{background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.30);}
+body.dark .pdm-chip-sustain{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.30);}
+body.dark .pdm-chip-name{color:rgba(255,255,255,.80)!important;}
+body.dark .pdm-chip-val{color:rgba(255,255,255,.92)!important;}
+body.dark .pdm-chip-sub{color:rgba(255,255,255,.42)!important;}
+body.dark .pdm-chip-split{color:rgba(255,255,255,.30)!important;}
+body.dark .pdm-hcell{color:rgba(255,255,255,.40);}
+body.dark .pdm-dlbl{color:inherit;}
+
+/* Dark mode — restore text variable overrides that were blocked by brightness(0.52) */
+body.dark .win-name{color:rgba(255,255,255,.78);}
+body.dark .win-meta{color:rgba(255,255,255,.38);}
+body.dark .hv-name{color:rgba(255,255,255,.78);}
+body.dark .hv-meta{color:rgba(255,255,255,.38);}
+body.dark .hv-val{color:rgba(255,255,255,.90);}
+body.dark .hv-rank{color:rgba(255,255,255,.35);}
+body.dark .qr-name{color:rgba(255,255,255,.78);}
+body.dark .qr-meta{color:rgba(255,255,255,.38);}
+body.dark .qr-val{color:rgba(255,255,255,.90);}
+body.dark .qr-prob{color:rgba(255,255,255,.38);}
+body.dark .rc-label{color:inherit;}
+body.dark .rc-val{color:inherit;}
+body.dark .src-lbl{color:inherit;}
+body.dark .src-right{color:rgba(255,255,255,.40);}
+body.dark .rev-pct{color:rgba(255,255,255,.40);}
+body.dark .ksub{color:rgba(255,255,255,.40);}
+body.dark .ke{color:rgba(255,255,255,.40);}
+body.dark .tick-name{color:rgba(255,255,255,.75);}
+body.dark .tick-pct{color:rgba(255,255,255,.38);}
+body.dark .quad-title{color:rgba(255,255,255,.72);}
+body.dark .quad-n{color:rgba(255,255,255,.35);}
+body.dark .qr-empty{color:rgba(255,255,255,.28);}
+
+/* Dark KPI cards — brighter background so cavity depth is more readable */
+body.dark .kc{background:rgba(2,6,10,.90);}
+
+/* Dark mode overall: slightly reduce cavity aggressiveness so text stays readable */
+body.dark .g{
+  backdrop-filter:blur(48px) saturate(140%) brightness(0.62);
+  -webkit-backdrop-filter:blur(48px) saturate(140%) brightness(0.62);
+}
+body.dark .kc{
+  backdrop-filter:blur(48px) saturate(130%) brightness(0.54);
+  -webkit-backdrop-filter:blur(48px) saturate(130%) brightness(0.54);
+}
+
+/* Theme toggle flash — brief white/black pulse on the pill to confirm the switch */
+@keyframes themeFlash{
+  0%{opacity:1}15%{opacity:.2}30%{opacity:1}50%{opacity:.3}70%{opacity:1}100%{opacity:1}
+}
+.theme-flash{animation:themeFlash 500ms ease both}
+</style>
+</head>
+<body>
+<div id="cur"></div><div id="cdot"></div>
+<div id="bgs"></div>
+<div class="ov"></div>
+<div class="sl" id="sl"><div class="slt" id="slt"></div><div class="sly" id="sly"></div></div>
+<div id="ui"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   API CONFIGURATION
+   ─────────────────────────────────────────────────────
+   Auto-detects the API path relative to wherever this
+   file is served from (same host as the SDG dashboard).
+   Override API_BASE / API_REVENUE if the TV file lives
+   in a different directory from /api/.
+═══════════════════════════════════════════════════════ */
+const API_CFG = {
+  BASE:    (()=>{ const b=window.location.pathname.replace(/\/[^/]*$/,''); return b+'/api/deals.php'; })(),
+  REVENUE: (()=>{ const b=window.location.pathname.replace(/\/[^/]*$/,''); return b+'/api/revenue.php'; })(),
+  TIMEOUT: 8000,
+};
+
+/* ═══════════════════════════════════════════════════════
+   TARGETS
+═══════════════════════════════════════════════════════ */
+const GROSS_TARGET   = 1742063632; // Sum of all division annual targets from Excel
+const COMPANY_TARGET = 1300000000;
+
+/* ── NEAR-CLOSE DEFINITION ────────────────────────────────────
+   MUST stay in sync with js/pages.js (`near`) and js/health.js.
+   Previously the TV omitted 'Supplied' and 'Signed and Started'
+   and restricted to status==='Open', so the TV headline was
+   permanently lower than the same figure on the web dashboard. */
+const NEAR_STAGES   = ['Active negotiation','Contract negotiation','Supplied','Signed and Started'];
+const NEAR_EXCLUDE  = ['Won','Lost'];   // On Hold IS counted, matching pages.js
+
+/* ── RUNNING REVENUE BASIS ────────────────────────────────────
+   'full'    → whole contract value (matches js/pages.js runningValue)
+   'quarter' → live-quarter allocation only (q1..q4 columns)
+   GROSS_TARGET is an ANNUAL figure, so 'full' is the only basis
+   that makes  target − realised − running  arithmetically valid.
+   'quarter' is kept for a future quarter-scoped view. */
+const RUNNING_BASIS = 'full';
+
+/* ── DIVISION SHARE OF STAGE TARGETS ──────────────────────────
+   PDM_FINANCE targets are COMPANY-WIDE. Cell health is evaluated
+   per division, so each division is measured against its share.
+   Equal split by default — retune per division when the Excel
+   division-level stage targets are available. */
+const DIV_TARGET_SHARE = {DM:0.25, CI:0.25, MF:0.25, EA:0.25};
+
+/* ═══════════════════════════════════════════════════════
+   SEED / FALLBACK DATA  (used while API loads or if unreachable)
+═══════════════════════════════════════════════════════ */
+const DEALS_SEED = [
+  {id:"3",n:"Pipeline — Materials Supply",client:"Client S",div:"DM",sub:"Heavy Infrastructure",status:"Won",stage:"Signed and Started",ps:"Detailed Feasibility",val:7450000,prob:1.0,src:"Direct Request / Closed",country:"Country B"},
+  {id:"11",n:"Terminal — Consultancy Services",client:"Client Q",div:"DM",sub:"Heavy Infrastructure",status:"Won",stage:"Signed and Started",ps:"Detailed Feasibility",val:117850000,prob:1.0,src:"B2B (Private)",country:"Country E"},
+  {id:"14",n:"Depot — Construction Supervision",client:"Client D",div:"DM",sub:"Heavy Infrastructure",status:"Won",stage:"Signed and Started",ps:"Intake/Screening",val:3330000,prob:1.0,src:"B2B (Private)",country:"Country B"},
+  {id:"22",n:"Pipeline — Technical Audit",client:"Client X",div:"MF",sub:"Fabrication & Manufacturing",status:"Won",stage:"Signed and Started",ps:"Construction & Installation",val:9630000,prob:1.0,src:"B2B (Private)",country:"Country A"},
+  {id:"42",n:"Terminal — Upgrade Works",client:"Client Q",div:"EA",sub:"Electrical & Automation",status:"Won",stage:"Signed and Started",ps:"Construction & Installation",val:190000,prob:1.0,src:"B2B (Private)",country:"Country E"},
+  {id:"43",n:"Warehouse — Feasibility Study",client:"Client E",div:"EA",sub:"Electrical & Automation",status:"Won",stage:"Signed and Started",ps:"Construction & Installation",val:630000,prob:1.0,src:"B2B (Private)",country:"Country E"},
+  {id:"54",n:"Storage Facility — PMC Services",client:"Client Z",div:"CI",sub:"Civil Engineering",status:"Won",stage:"Signed and Started",ps:"Construction & Installation",val:34650000,prob:1.0,src:"Restricted Tender",country:"Country D"},
+  {id:"65",n:"Warehouse — PMC Services",client:"Client I",div:"CI",sub:"Building Services",status:"Won",stage:"Signed and Started",ps:"Construction & Installation",val:1970000,prob:1.0,src:"B2B (Private)",country:"Country D"},
+  {id:"66",n:"Processing Plant — Consultancy Services",client:"Client L",div:"CI",sub:"Building Services",status:"Won",stage:"Signed and Started",ps:"Construction & Installation",val:14150000,prob:1.0,src:"B2B (Private)",country:"Country C"},
+  {id:"75",n:"Access Road — Construction Supervision",client:"Client F",div:"CI",sub:"Heavy Infrastructure",status:"Won",stage:"Contract negotiation",ps:"Design Development",val:760000,prob:1.0,src:"B2B (Private)",country:"Country B"},
+  {id:"8",n:"Distribution Hub — Installation Works",client:"Client Y",div:"DM",sub:"Sustainable Energies",status:"Open",stage:"Proposal Development",ps:"Concept Development",val:1097800000,prob:0.3,src:"B2B (Private)",country:"Country B"},
+  {id:"20",n:"Warehouse — Detailed Design",client:"Client D",div:"MF",sub:"Fabrication & Manufacturing",status:"On Hold",stage:"Proposal submitted",ps:"Construction & Installation",val:1593300000,prob:0.475,src:"B2B (Private)",country:"Country A"},
+  {id:"21",n:"Substation — Consultancy Services",client:"Client N",div:"MF",sub:"Fabrication & Manufacturing",status:"Open",stage:"Proposal submitted",ps:"Construction & Installation",val:586590000,prob:0.475,src:"B2B (Private)",country:"Country A"},
+  {id:"40",n:"Processing Plant — Materials Supply",client:"Client U",div:"MF",sub:"Industrial & Manufacturing",status:"Open",stage:"Active negotiation",ps:"Planning Monitoring & Controls",val:883410000,prob:0.8,src:"Cross-sell",country:"Country B"},
+  {id:"44",n:"Logistics Centre — Feasibility Study",client:"Client X",div:"EA",sub:"Electrical & Automation",status:"On Hold",stage:"Proposal submitted",ps:"Construction & Installation",val:432740000,prob:0.475,src:"B2B (Private)",country:"Country D"},
+  {id:"50",n:"Storage Facility — Design Review",client:"Client X",div:"EA",sub:"Electrical & Automation",status:"Open",stage:"Proposal submitted",ps:"Construction & Installation",val:129950000,prob:0.475,src:"B2G (Public)",country:"Country E"},
+  {id:"56",n:"Pipeline — Upgrade Works",client:"Client A",div:"CI",sub:"Civil Engineering",status:"Open",stage:"Proposal submitted",ps:"Construction & Installation",val:206140000,prob:0.475,src:"B2G (Public)",country:"Country A"},
+  {id:"70",n:"Pipeline — Masterplanning",client:"Client Z",div:"CI",sub:"Geotech & Environment",status:"Open",stage:"Active negotiation",ps:"Procurement",val:586520000,prob:0.76,src:"B2B (Private)",country:"Country A"},
+  {id:"76",n:"Jetty — Installation Works",client:"Client S",div:"CI",sub:"Liquid Gases",status:"Open",stage:"Proposal submitted",ps:"Planning Monitoring & Controls",val:160810000,prob:0.475,src:"B2B (Private)",country:"Country B"},
+  {id:"78",n:"Bridge — Masterplanning",client:"Client K",div:"CI",sub:"Real Estate",status:"On Hold",stage:"Proposal Development",ps:"Planning Monitoring & Controls",val:697680000,prob:0.3,src:"Cross-sell",country:"Country E"},
+  {id:"25",n:"Warehouse — Consultancy Services",client:"Client R",div:"MF",sub:"Fabrication & Manufacturing",status:"Open",stage:"Proposal submitted",ps:"Construction & Installation",val:383590000,prob:0.475,src:"B2B (Private)",country:"Country A"},
+  {id:"47",n:"Bridge — Construction Supervision",client:"Client Q",div:"EA",sub:"Electrical & Automation",status:"Open",stage:"Active negotiation",ps:"Construction & Installation",val:64790000,prob:0.72,src:"B2B (Private)",country:"Country C"},
+  {id:"49",n:"Storage Facility — Feasibility Study",client:"Client N",div:"EA",sub:"Electrical & Automation",status:"Open",stage:"Proposal submitted",ps:"Construction & Installation",val:87690000,prob:0.475,src:"B2G (Public)",country:"Country D"},
+  {id:"6",n:"Depot — Feasibility Study",client:"Client E",div:"DM",sub:"Real Estate",status:"Open",stage:"Active negotiation",ps:"Detailed Feasibility",val:16650000,prob:0.72,src:"B2B (Private)",country:"Country C"},
+  {id:"80",n:"Substation — Detailed Design",client:"Client X",div:"CI",sub:"Real Estate",status:"Open",stage:"Proposal submitted",ps:"Design Development",val:348800000,prob:0.45,src:"Cross-sell",country:"Country B"},
+  {id:"7",n:"Logistics Centre — PMC Services",client:"Client C",div:"DM",sub:"Real Estate",status:"Open",stage:"Active negotiation",ps:"Concept Development",val:1670000,prob:0.8,src:"B2B (Private)",country:"Country D"},
+  {id:"46",n:"Jetty — PMC Services",client:"Client X",div:"EA",sub:"Electrical & Automation",status:"Open",stage:"Active negotiation",ps:"Construction & Installation",val:1860000,prob:0.72,src:"B2B (Private)",country:"Country E"},
+  {id:"51",n:"Terminal — Detailed Design",client:"Client X",div:"EA",sub:"Electrical & Automation",status:"Open",stage:"Active negotiation",ps:"Procurement",val:950000,prob:0.8,src:"B2B (Private)",country:"Country C"},
+  {id:"88",n:"Processing Plant — Materials Supply",client:"Client M",div:"DM",sub:"Sustainable Energies",status:"Open",stage:"Active negotiation",ps:"Concept Development",val:1340000,prob:0.8,src:"Cross-sell",country:"Country A"},
+  {id:"15",n:"Storage Facility — Upgrade Works",client:"Client D",div:"DM",sub:"Heavy Infrastructure",status:"Open",stage:"Active negotiation",ps:"Concept Development",val:0,prob:0.8,src:"B2B (Private)",country:"Country C"}
+];
+const REVENUE_SEED = [
+  {status:"Paid",amount:258000},{status:"Paid",amount:1464846.6},{status:"Paid",amount:263847},
+  {status:"Paid",amount:283608},{status:"Paid",amount:125407.25},{status:"Pending",amount:748200},
+  {status:"Pending",amount:25238179.2},{status:"Paid",amount:1496400},{status:"Paid",amount:1496400},
+  {status:"Pending",amount:814157.04},{status:"Pending",amount:6188845.47},{status:"Pending",amount:1732505.99},
+  {status:"Paid",amount:5000000},{status:"Paid",amount:5000000},{status:"Paid",amount:552931.02},
+  {status:"Pending",amount:5142671.95},{status:"Pending",amount:3697924.65},{status:"Paid",amount:5411536.9},
+  {status:"Paid",amount:1016534},{status:"Pending",amount:1000000},{status:"Paid",amount:2000000},
+  {status:"Pending",amount:1875000},{status:"Pending",amount:1875000},{status:"Paid",amount:12500000},
+  {status:"Pending",amount:4766050.86},{status:"Paid",amount:814427.25},{status:"Pending",amount:245611},
+  {status:"Pending",amount:649667.55},{status:"Paid",amount:447603},{status:"Paid",amount:1310400},
+  {status:"Paid",amount:1006720},{status:"Paid",amount:400000},{status:"Paid",amount:228285},
+  {status:"Paid",amount:284246.25},{status:"Paid",amount:419250},{status:"Paid",amount:419250},
+  {status:"Paid",amount:7159500},{status:"Paid",amount:2012400},{status:"Paid",amount:17241379.31},
+  {status:"Paid",amount:1663454.31},{status:"Paid",amount:11324636.52},{status:"Paid",amount:6489558.71},
+  {status:"Paid",amount:7902410.32},{status:"Paid",amount:5846103.03},{status:"Paid",amount:11012718.38},
+  {status:"Paid",amount:12392882.2},{status:"Paid",amount:2764956},{status:"Paid",amount:6275205},
+  // Running seed entries: q2/q3/q4 null → runningLiveAmount falls back to amount.
+  // These are placeholder values only; correct figures load from API on boot.
+  {status:"Running",amount:63095448,division:'DM',q2:null,q3:null,q4:null},
+  {status:"Running",amount:19681541,division:'CI',q2:null,q3:null,q4:null},
+  {status:"Running",amount:11887602,division:'CI',q2:null,q3:null,q4:null},
+  {status:"Running",amount:5980000, division:'MF',q2:null,q3:null,q4:null},
+  {status:"Running",amount:2320000, division:'CI',q2:null,q3:null,q4:null},
+  {status:"Running",amount:5327700, division:'DM',q2:null,q3:null,q4:null},
+];
+
+/* ═══════════════════════════════════════════════════════
+   LIVE DATA LAYER — mutable arrays updated from API
+═══════════════════════════════════════════════════════ */
+let DEALS_RAW  = [...DEALS_SEED];
+let REALIZED   = [...REVENUE_SEED];
+let DATA_SRC   = 'seed';   // 'seed' | 'api' | 'partial'
+let DEALS_LIVE = false;    // true once deals came from the API
+let REV_LIVE   = false;    // true once revenue came from the API
+let LAST_FETCH = null;
+
+/* Maps an API deals.php record → TV shorthand format */
+function mapDeal(r){
+  return {
+    id:         String(r.id||''),
+    n:          r.dealName||r.deal_name||'',
+    client:     r.client||'',
+    div:        r.division||'',
+    // API exposes `portfolio`; `subdivision` only exists on legacy payloads.
+    sub:        r.portfolio||r.subdivision||'',
+    status:     r.status||'Open',
+    stage:      r.dealStage||r.deal_stage||'',
+    ps:         r.projectStage||r.project_stage||'',
+    val:        parseFloat(r.estimatedValue||r.estimated_value||0)||0,
+    prob:       parseFloat(r.probability||0)||0,
+    src:        r.dealSource||r.deal_source||'',
+    country:    r.country||'',
+    signoffDate:r.signoffDate||r.signoff_date||'',
+    updatedAt:  r.updatedAt||r.updated_at||'',
+  };
+}
+
+/* Maps an API revenue.php record → TV shorthand format
+   Realized = Paid + Pending (invoiced/confirmed revenue)
+   Running  = Running status (active contracts not yet invoiced) */
+function mapRevenue(r){
+  const st = ['Paid','Pending','Running'].includes(r.status) ? r.status : 'Running';
+  return {
+    status:      st,
+    amount:      parseFloat(r.amountKES||0)||0,
+    division:    r.division||'',
+    // Needed for the future-quarter guard on Realized (see realizedCountable)
+    invoiceDate: r.invoiceDate||'',
+    // q1 is not a DB column today; read it if it ever appears, else null.
+    q1:       r.q1 != null ? parseFloat(r.q1)||0 : null,
+    q2:       r.q2 != null ? parseFloat(r.q2)||0 : null,
+    q3:       r.q3 != null ? parseFloat(r.q3)||0 : null,
+    q4:       r.q4 != null ? parseFloat(r.q4)||0 : null,
+  };
+}
+
+/* Determine the live quarter key based on today's date */
+function liveQKey(){
+  const m = new Date().getMonth() + 1; // 1-12
+  if (m <= 3)  return 'Q1';
+  if (m <= 6)  return 'Q2';
+  if (m <= 9)  return 'Q3';
+  return 'Q4';
+}
+
+/* Quarter of an ISO date string — mirrors _rvQuarterOf() in js/pages.js */
+function qOfDate(ds){
+  if(!ds) return null;
+  const m = parseInt(String(ds).slice(5,7), 10);
+  if (m >= 1  && m <= 3)  return 'Q1';
+  if (m >= 4  && m <= 6)  return 'Q2';
+  if (m >= 7  && m <= 9)  return 'Q3';
+  if (m >= 10 && m <= 12) return 'Q4';
+  return null;
+}
+
+const Q_ORD = {Q1:1, Q2:2, Q3:3, Q4:4};
+
+/* FUTURE-QUARTER GUARD on Realized.
+   Mirrors the guard in js/pages.js (computeOverview → realisedV). Rows
+   invoiced into a quarter that has not started yet are placeholders and
+   must not count toward Realized. Undated / pre-2026 rows are treated as
+   Q1 carryover, same convention as the Revenue page.
+   Without this the TV overstated Realized by exactly those rows. */
+function realizedCountable(r){
+  const live = Q_ORD[liveQKey()];
+  const inv  = r.invoiceDate || '';
+  let q  = qOfDate(inv);
+  const yr = inv ? parseInt(String(inv).slice(0,4), 10) : 0;
+  if (!q || yr < 2026) q = 'Q1';
+  return Q_ORD[q] <= live;
+}
+
+/* Amount to count for a Running record.
+   RUNNING_BASIS==='full'    → whole contract value (dashboard parity).
+   RUNNING_BASIS==='quarter' → live-quarter allocation, falling back to the
+     full amount only when NO quarter column is populated at all. The old
+     code looked up r[q] blindly, so every Jan–Mar (Q1, which has no column)
+     it silently reverted to full value — an annual step-change with no
+     code change. */
+function runningLiveAmount(r){
+  if (RUNNING_BASIS === 'full') return r.amount;
+  const alloc = r[liveQKey().toLowerCase()];   // r.q1 / r.q2 / r.q3 / r.q4
+  if (alloc != null) return alloc;
+  const anyAlloc = [r.q1, r.q2, r.q3, r.q4].some(v => v != null);
+  return anyAlloc ? 0 : r.amount;              // allocated elsewhere, or legacy row
+}
+
+/* Fetch fresh data from the API; fall back silently on error */
+async function fetchData(){
+  const ctrl = new AbortController();
+  const tid   = setTimeout(()=>ctrl.abort(), API_CFG.TIMEOUT);
+  try {
+    const [dealsRes, revRes] = await Promise.all([
+      fetch(API_CFG.BASE,    {signal:ctrl.signal}),
+      fetch(API_CFG.REVENUE, {signal:ctrl.signal}),
+    ]);
+    clearTimeout(tid);
+    if(!dealsRes.ok||!revRes.ok) throw new Error('Non-OK response');
+    const [dealsJSON, revJSON] = await Promise.all([dealsRes.json(), revRes.json()]);
+    const dealRows = Array.isArray(dealsJSON) ? dealsJSON
+                   : Array.isArray(dealsJSON?.data) ? dealsJSON.data : [];
+    if(dealRows.length){
+      DEALS_RAW  = dealRows.map(mapDeal);
+      DEALS_LIVE = true;
+    }
+    // revenue.php may return plain array or {data:[...]} wrapper
+    const revRows = Array.isArray(revJSON) ? revJSON
+                  : Array.isArray(revJSON?.data) ? revJSON.data : [];
+    if(revRows.length){
+      REALIZED   = revRows.map(mapRevenue);
+      REV_LIVE   = true;
+    }
+    // Badge must not read "Live" when only half the payload landed —
+    // previously a live deals feed + an empty revenue table rendered
+    // seed revenue figures under a "Live · Data" badge.
+    DATA_SRC = (DEALS_LIVE && REV_LIVE) ? 'api'
+             : (DEALS_LIVE || REV_LIVE) ? 'partial'
+             : 'seed';
+    LAST_FETCH = new Date();
+  } catch(e){
+    clearTimeout(tid);
+    // Keep current data (seed or last successful API pull)
+    console.warn('[TV] fetchData failed:', e?.message || e);
+  }
+}
+
+const SAYINGS = [
+  "The best time to plant a tree was twenty years ago. The second best time is now. — African Proverb",
+  "Revenue is vanity, profit is sanity, but cash is reality. — Alan Miltz",
+  "Success is not final, failure is not fatal: it is the courage to continue that counts. — Churchill",
+  "The secret of getting ahead is getting started. — Mark Twain",
+  "Opportunities don't happen — you create them. — Chris Grosser",
+  "Do what you do so well that they will want to see it again and bring their friends. — Walt Disney",
+  "In the middle of every difficulty lies opportunity. — Albert Einstein",
+  "The only way to do great work is to love what you do. — Steve Jobs",
+  "Price is what you pay. Value is what you get. — Warren Buffett",
+  "It always seems impossible until it's done. — Nelson Mandela",
+  "You miss 100% of the shots you don't take. — Wayne Gretzky",
+  "Whether you think you can or you think you can't, you're right. — Henry Ford",
+  "The difference between ordinary and extraordinary is that little extra. — Jimmy Johnson",
+  "Alone we can do so little; together we can do so much. — Helen Keller",
+  "Coming together is a beginning, staying together is progress, working together is success. — Henry Ford",
+];
+
+/* ═══════════════════════════════════════════════════════
+   KPI COMPUTATION  (runs fresh each render pass)
+═══════════════════════════════════════════════════════ */
+const fksh = v => v==null?'—':v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v?Math.round(v).toLocaleString():'0';
+
+function computeKPIs(){
+  const wonDeals       = DEALS_RAW.filter(d=>d.status==='Won');
+  // Single source of truth for near-close — the ticker reuses this array
+  // instead of re-declaring the filter (it used to drift independently).
+  const nearCloseDeals = DEALS_RAW.filter(d=>
+    NEAR_STAGES.includes(d.stage) && !NEAR_EXCLUDE.includes(d.status));
+  const winsValue      = wonDeals.reduce((s,d)=>s+d.val,0);
+  // Raw estimated value, matching js/pages.js `nearV`. The TV previously
+  // probability-weighted this, so the same label showed two different numbers.
+  const nearCloseValue = nearCloseDeals.reduce((s,d)=>s+d.val,0);
+  const realisedKES    = REALIZED
+    .filter(r=>r.status==='Paid'||r.status==='Pending')
+    .filter(realizedCountable)
+    .reduce((s,r)=>s+r.amount,0);
+  const runningKES     = REALIZED.filter(r=>r.status==='Running').reduce((s,r)=>s+runningLiveAmount(r),0);
+  const winBalance     = Math.max(COMPANY_TARGET - winsValue, 0);
+  const revBalance     = Math.max(GROSS_TARGET - realisedKES - runningKES, 0);
+  // True (unclamped) gap — negative once the target is exceeded. Drives the
+  // over-target indicator so the meter can no longer silently truncate.
+  const revGapRaw      = GROSS_TARGET - realisedKES - runningKES;
+
+  // Deal origination — B2B | B2C | SP | B2G
+  // SP = Strategic Partnerships (formerly B2D). Order matches the dashboard
+  // classifier in js/pages.js (srcKey): B2G first, then SP, B2C, B2B default.
+  // Both the legacy 'B2D ...' and the current 'SP (...)' source values map to SP.
+  // NOTE: the old rule also caught the substring 'Direct', which swept
+  // 'Direct Request / Closed' style values into this bucket. Dropped — the
+  // dashboard never had it, and it is an origin value, not a deal source.
+  const srcMap={};
+  DEALS_RAW.filter(d=>d.status!=='Lost').forEach(d=>{
+    const s=(d.src||'').toUpperCase();
+    let k;
+    if     (s.includes('B2G')||s.includes('PUBLIC')||s.includes('TENDER')||s.includes('GOVERNMENT')) k='B2G';
+    else if(s.includes('B2D')||s.includes('SP (')||s.includes('STRATEGIC PARTNER'))                  k='SP';
+    else if(s.includes('B2C')||s.includes('CONSUMER'))                                              k='B2C';
+    else /* B2B default — covers 'B2B', 'B2B (Private)', 'Cross-sell', etc. */                      k='B2B';
+    if(!srcMap[k]) srcMap[k]={count:0,val:0};
+    srcMap[k].count++; srcMap[k].val+=d.val*d.prob;
+  });
+  const srcMax = Math.max(...['B2B','B2C','SP','B2G'].map(k=>(srcMap[k]||{val:0}).val));
+
+  // Highest value open
+  // "Open Pipeline" = everything not Won/Lost, same as pages.js `pipeline`
+  // and the Focus quadrants below. Restricting to status==='Open' hid the
+  // largest opportunities in the book (they sit On Hold).
+  const highestOpen = DEALS_RAW.filter(d=>!['Won','Lost'].includes(d.status)&&d.val>0)
+    .sort((a,b)=>b.val-a.val).slice(0,9);
+
+  // PDM table — Won deals only, count + value + financial health per cell
+  // target = stage revenue target; floor = min gross profit % threshold
+  const DIVS=['DM','CI','MF','EA'];
+  const PDM_FINANCE=[
+    {db:['Concept Development'],                               phase:'DEVELOP', target:17000000,   floor:.40},
+    {db:['Detailed Feasibility'],                              phase:'DEVELOP', target:68000000,   floor:.30},
+    {db:[],                                                    phase:'DEVELOP', target:17000000,   floor:.30},
+    {db:['Intake/Screening','Planning Monitoring & Controls'], phase:'DELIVER', target:8500000,    floor:.25},
+    {db:['Design Development'],                                phase:'DELIVER', target:136000000,  floor:.30},
+    {db:['Procurement'],                                       phase:'DELIVER', target:1309000000, floor:.18},
+    {db:[],                                                    phase:'DELIVER', target:68000000,   floor:.30},
+    {db:['Construction & Installation'],                       phase:'SUSTAIN', target:8500000,    floor:.20},
+    {db:['Operations & Maintenance'],                          phase:'SUSTAIN', target:51000000,   floor:.30},
+    {db:[],                                                    phase:'SUSTAIN', target:17000000,   floor:.30},
+  ];
+  const wonOnly = DEALS_RAW.filter(d=>d.status==='Won');
+  const pdmData={};
+  DIVS.forEach(div=>{
+    pdmData[div]={};
+    PDM_FINANCE.forEach((st,i)=>{
+      const matches = st.db.length ? wonOnly.filter(d=>d.div===div&&st.db.includes(d.ps)) : [];
+      const val = matches.reduce((s,d)=>s+d.val,0);
+      const count = matches.length;
+      // st.target is COMPANY-WIDE. Comparing one division's value against it
+      // meant a division had to hit the whole company's number alone, so the
+      // matrix read red/amber almost everywhere by construction.
+      const divTarget = st.target * (DIV_TARGET_SHARE[div] ?? 0.25);
+      let health = 'empty';
+      if(count>0) health = val>=divTarget ? 'teal' : val>=(divTarget*st.floor) ? 'amber' : 'red';
+      pdmData[div][i] = {count, val, health, target:divTarget};
+    });
+  });
+  // Phase summary chips
+  const phaseTargets={DEVELOP:102000000, DELIVER:1521500000, SUSTAIN:76500000};
+  const phaseSummary={};
+  ['DEVELOP','DELIVER','SUSTAIN'].forEach(ph=>{
+    const idxs = PDM_FINANCE.map((s,i)=>s.phase===ph?i:-1).filter(i=>i>=0);
+    let totalVal=0, totalCount=0;
+    DIVS.forEach(div=>idxs.forEach(i=>{totalVal+=pdmData[div][i].val; totalCount+=pdmData[div][i].count;}));
+    phaseSummary[ph]={val:totalVal, count:totalCount, target:phaseTargets[ph]};
+  });
+
+  // Focus quadrants — Open + On Hold deals, split by median value and prob threshold
+  const activePipeline = DEALS_RAW.filter(d=>(d.status==='Open'||d.status==='On Hold')&&d.val>0);
+  const sorted4med = [...activePipeline].sort((a,b)=>a.val-b.val);
+  const medVal = sorted4med[Math.floor(sorted4med.length/2)]?.val||0;
+
+  return {
+    wonDeals,nearCloseDeals,winsValue,nearCloseValue,
+    realisedKES,runningKES,winBalance,revBalance,revGapRaw,
+    srcMap,srcMax,highestOpen,pdmData,phaseSummary,
+    activePipeline,medVal,
+    quadWin:    activePipeline.filter(d=>d.val>=medVal&&d.prob>=0.5).sort((a,b)=>b.val*b.prob-a.val*a.prob).slice(0,8),
+    quadClose:  activePipeline.filter(d=>d.val<medVal&&d.prob>=0.5).sort((a,b)=>b.prob-a.prob).slice(0,6),
+    quadAce:    activePipeline.filter(d=>d.val>=medVal&&d.prob<0.5).sort((a,b)=>b.val-a.val).slice(0,5),
+    quadNurture:activePipeline.filter(d=>d.val<medVal&&d.prob<0.5).sort((a,b)=>b.prob-a.prob).slice(0,8),
+  };
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════════════════ */
+const divColor={DM:'#0d9488',CI:'#64748b',MF:'#d97706',EA:'#7c3aed'};
+const DIVS=['DM','CI','MF','EA'];
+const DIVLABELS={DM:'Dev Mgt',CI:'Civil',MF:'Mech & Fab',EA:'Elec & Auto'};
+// PDM lifecycle stage definitions (mirrors computeKPIs — kept in sync)
+const srcColors={B2B:'#0d9488',B2C:'#7c3aed',SP:'#d97706',B2G:'#64748b'};
+const srcLabels={B2B:'B2B',B2C:'B2C',SP:'SP',B2G:'B2G'};
+const srcOrder=['B2B','B2C','SP','B2G'];
+
+function render(){
+  const kpi = computeKPIs();
+  const {wonDeals,nearCloseDeals,winsValue,nearCloseValue,realisedKES,runningKES,winBalance,revBalance,revGapRaw,
+         srcMap,srcMax,highestOpen,pdmData,phaseSummary,quadWin,quadClose,quadAce,quadNurture} = kpi;
+
+  const now=new Date(),p=t=>t.toString().padStart(2,'0');
+  const timeStr=p(now.getHours())+':'+p(now.getMinutes())+':'+p(now.getSeconds());
+  const dateStr=now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+
+  const srcBadge = DATA_SRC==='api'
+    ? `<span class="hdr-badge" style="color:var(--em);border-color:rgba(13,148,136,.25)">Live · Data</span>`
+    : DATA_SRC==='partial'
+    ? `<span class="hdr-badge" style="color:var(--am);border-color:rgba(217,119,6,.30)">Live · ${DEALS_LIVE?'Deals':'Revenue'} only</span>`
+    : `<span class="hdr-badge">Seed Data</span>`;
+
+  const G=GROSS_TARGET;
+  // Raw (unclamped) shares — these are what the % labels report, so the
+  // numbers stay truthful even past 100% of target.
+  const rRaw=realisedKES/G, ruRaw=runningKES/G;
+  const overTarget = revGapRaw < 0;
+  // Clamped shares — geometry only, so the stacked bar never overflows.
+  const rP=Math.min(rRaw,1);
+  const ruP=Math.min(ruRaw,Math.max(1-rP,0));
+  const bP=Math.max(1-rP-ruP,0);
+  const realPct=(rRaw*100).toFixed(1),runPct=(ruRaw*100).toFixed(1),balPct=(bP*100).toFixed(1);
+  const realW=(rP*100).toFixed(1),runW=(ruP*100).toFixed(1),balW=(bP*100).toFixed(1);
+  const overPill = overTarget
+    ? `<span class="hdr-badge" style="color:var(--em);border-color:rgba(13,148,136,.30);margin-left:8px">Target exceeded · +${fksh(Math.abs(revGapRaw))}</span>`
+    : '';
+
+  const srcRowsHTML=srcOrder.filter(k=>srcMap[k]).map(k=>{
+    const d=srcMap[k],w=srcMax?((d.val/srcMax)*100).toFixed(0):0;
+    return `<div class="src-row">
+      <div class="src-lbl" style="color:${srcColors[k]}">${srcLabels[k]}</div>
+      <div class="src-track"><div class="src-bar" style="width:${w}%;background:${srcColors[k]}"></div></div>
+      <div class="src-right">${d.count} · ${fksh(d.val)}</div>
+    </div>`;
+  }).join('');
+
+  const wonSorted=[...wonDeals].sort((a,b)=>{
+    const da=a.signoffDate||a.updatedAt||'',db2=b.signoffDate||b.updatedAt||'';
+    if(da&&db2) return da>db2?-1:da<db2?1:0;
+    if(da) return -1; if(db2) return 1;
+    return parseInt(b.id)-parseInt(a.id);
+  }).slice(0,9);
+  const winsListHTML=wonSorted.map(d=>`
+    <div class="win-item">
+      <div class="win-stripe" style="background:${divColor[d.div]||'var(--em)'}"></div>
+      <div class="win-body">
+        <div class="win-name">${d.n.substring(0,34)}${d.n.length>34?'…':''}</div>
+        <div class="win-meta">${d.div} · ${d.client||d.country}</div>
+      </div>
+      <div class="win-val" style="color:${divColor[d.div]||'var(--em)'}">${fksh(d.val)}</div>
+    </div>`).join('');
+
+  const PDM_STAGES_R=[
+    {short:'Concept Dev.',  phase:'DEVELOP'},
+    {short:'Feasibility',   phase:'DEVELOP'},
+    {short:'Structuring',   phase:'DEVELOP'},
+    {short:'Planning',      phase:'DELIVER'},
+    {short:'Design Dev.',   phase:'DELIVER'},
+    {short:'Procurement',   phase:'DELIVER'},
+    {short:'M & C',         phase:'DELIVER'},
+    {short:'Construction',  phase:'SUSTAIN'},  // matches 'Construction & Installation'
+    {short:'Ops & Maint.',  phase:'SUSTAIN'},
+    {short:'Decommission',  phase:'SUSTAIN'},
+  ];
+  // Phase chips
+  const phaseChipDefs=[
+    {key:'DEVELOP',label:'Develop',split:'6.0%',cls:'develop',barColor:'rgba(5,150,105,.65)'},
+    {key:'DELIVER',label:'Deliver',split:'90.0%',cls:'deliver',barColor:'rgba(2,132,199,.60)'},
+    {key:'SUSTAIN',label:'Sustain',split:'4.5%',cls:'sustain',barColor:'rgba(124,58,237,.60)'},
+  ];
+  const phaseChipsHTML=`<div class="pdm-chips">${phaseChipDefs.map(({key,label,split,cls,barColor})=>{
+    const ps=phaseSummary[key];
+    const pct=Math.min(ps.target>0?(ps.val/ps.target)*100:0,100).toFixed(0);
+    return `<div class="pdm-chip pdm-chip-${cls}">
+      <div class="pdm-chip-top">
+        <div class="pdm-chip-name" style="color:${cls==='develop'?'rgba(5,150,105,.85)':cls==='deliver'?'rgba(2,132,199,.85)':'rgba(124,58,237,.85)'}">${label}</div>
+        <div class="pdm-chip-split">${split} split</div>
+      </div>
+      <div class="pdm-chip-val">${fksh(ps.val)}</div>
+      <div class="pdm-chip-sub">vs ${fksh(phaseSummary[key].target)} target · ${ps.count} deal${ps.count!==1?'s':''}</div>
+      <div class="pdm-chip-bar"><div class="pdm-chip-fill" style="width:${pct}%;background:${barColor}"></div></div>
+    </div>`;
+  }).join('')}</div>`;
+  // Phase header
+  const PDM_PHASES=[
+    {label:'DEVELOP',color:'rgba(13,148,136,.55)',cols:3},
+    {label:'DELIVER',color:'rgba(2,132,199,.50)',cols:4},
+    {label:'SUSTAIN',color:'rgba(124,58,237,.50)',cols:3},
+  ];
+  const phaseHdrHTML=`<div class="pdm-phase-row" style="grid-template-columns:70px 3fr 4fr 3fr">
+    <div></div>
+    ${PDM_PHASES.map(ph=>`<div class="pdm-phase-cell" style="background:${ph.color}">${ph.label}</div>`).join('')}
+  </div>`;
+  const cols=`70px repeat(${PDM_STAGES_R.length},1fr)`;
+  const headerRow=`<div class="pdm-row pdm-header-row" style="grid-template-columns:${cols}">
+    <div></div>
+    ${PDM_STAGES_R.map(s=>`<div class="pdm-hcell">${s.short}</div>`).join('')}
+  </div>`;
+  const dataRows=DIVS.map(div=>{
+    const cells=PDM_STAGES_R.map((_,i)=>{
+      const cell=pdmData[div][i];
+      if(!cell||cell.health==='empty') return `<div class="pdm-cell-wrap"><div class="pdm-empty"></div></div>`;
+      return `<div class="pdm-cell-wrap"><div class="pdm-tile pdm-tile-${cell.health}" style="flex-direction:column;gap:1px">
+        <div class="pdm-tile-count">${cell.count}</div>
+        <div class="pdm-tile-val">${fksh(cell.val)}</div>
+      </div></div>`;
+    }).join('');
+    return `<div class="pdm-row" style="grid-template-columns:${cols}">
+      <div class="pdm-dlbl" style="color:${divColor[div]}">${DIVLABELS[div]}</div>
+      ${cells}
+    </div>`;
+  }).join('');
+  const pdmLegendHTML=`<div class="pdm-legend">
+    <div class="pdm-leg-grp">
+      <div class="pdm-leg-item"><div class="pdm-leg-dot" style="background:rgba(13,148,136,.85)"></div><div class="pdm-leg-lbl">Above target</div></div>
+      <div class="pdm-leg-item"><div class="pdm-leg-dot" style="background:rgba(251,191,36,.72)"></div><div class="pdm-leg-lbl">Above floor · below target</div></div>
+      <div class="pdm-leg-item"><div class="pdm-leg-dot" style="background:rgba(248,113,113,.75)"></div><div class="pdm-leg-lbl">Below floor</div></div>
+    </div>
+    <div class="pdm-won-pill"><span class="pdm-won-dot"></span>Won deals only</div>
+  </div>`;
+
+  const maxHvVal=highestOpen[0]?.val||1;
+  const hvHTML=highestOpen.slice(0,9).map((d,i)=>`
+    <div class="hv-item">
+      <div class="hv-bg" style="width:${((d.val/maxHvVal)*100).toFixed(0)}%;background:${divColor[d.div]||'var(--em)'}"></div>
+      <div class="hv-rank">${i+1}</div>
+      <div class="hv-stripe" style="background:${divColor[d.div]||'rgba(15,23,32,.2)'}"></div>
+      <div class="hv-body">
+        <div class="hv-name">${d.n.substring(0,44)}${d.n.length>44?'…':''}</div>
+        <div class="hv-meta">${d.div} · ${d.country}</div>
+      </div>
+      <div class="hv-val">${fksh(d.val)}</div>
+    </div>`).join('');
+
+  // Reuses nearCloseDeals from computeKPIs — this was a second, independent
+  // copy of the filter, so every stage change had to be made in two places.
+  const tickItems=nearCloseDeals.map(d=>`
+    <div class="tick-item">
+      <div class="tick-dot" style="background:${divColor[d.div]||'var(--em)'}"></div>
+      <span class="tick-div" style="color:${divColor[d.div]||'rgba(15,23,32,.3)'}">${d.div}</span>
+      <span class="tick-name">${d.n.substring(0,36)}${d.n.length>36?'…':''}</span>
+      <span class="tick-val" style="color:${divColor[d.div]||'var(--em)'}">${fksh(d.val)}</span>
+      <span class="tick-pct">${Math.round(d.prob*100)}%</span>
+      <div class="tick-sep"></div>
+    </div>`).join('');
+
+  const qRow=d=>`<div class="qr">
+    <div class="qr-stripe" style="background:${divColor[d.div]||'rgba(15,23,32,.2)'}"></div>
+    <div class="qr-body">
+      <div class="qr-name">${d.n.substring(0,26)}${d.n.length>26?'…':''}</div>
+      <div class="qr-meta">${d.div} · ${d.country}</div>
+    </div>
+    <div class="qr-right">
+      <div class="qr-val">${fksh(d.val)}</div>
+      <div class="qr-prob">${Math.round(d.prob*100)}%</div>
+    </div>
+  </div>`;
+  const qEmpty=`<div class="qr-empty">—</div>`;
+  const si=Math.floor(Date.now()/300000)%SAYINGS.length;
+
+  document.getElementById('ui').innerHTML=`
+  <div class="g hdr">
+    <div class="live-pill"><span class="live-dot"></span>${srcBadge}</div>
+    <div class="hdr-center">
+      <div class="hdr-title">Example Organisation</div>
+      <div class="hdr-title">Commercial Pipeline</div>
+      <div class="hdr-sub">Intelligence · Pipeline · Revenue · Deals · ${dateStr}</div>
+    </div>
+    <div class="hdr-won">Won <span style="color:var(--em);font-weight:700">${wonDeals.length}</span></div>
+    <div id="clk">${timeStr}</div>
+  </div>
+
+  <div class="kr3">
+    <div class="g kc">
+      <div class="kc-glow" style="background:var(--em)"></div>
+      <div class="ke">Near Close Value</div>
+      <div class="kv" style="color:var(--em)">${fksh(nearCloseValue)}</div>
+      <div class="ksub">${nearCloseDeals.length} deals at negotiation stage</div>
+      <div class="kc-line" style="background:linear-gradient(90deg,transparent,var(--em),transparent)"></div>
+    </div>
+    <div class="g kc kc-mid">
+      <div class="kc-glow" style="background:var(--am)"></div>
+      <div class="ke">Won Revenue</div>
+      <div class="kv" style="color:var(--am)">${fksh(winsValue)}</div>
+      <div class="ksub">${wonDeals.length} contracts closed</div>
+      <div class="kc-line" style="background:linear-gradient(90deg,transparent,var(--am),transparent)"></div>
+    </div>
+    <div class="g kc kc-right">
+      <div class="kc-glow" style="background:var(--em)"></div>
+      <div class="ke">Balance to Target</div>
+      <div class="kv" style="color:var(--em)">${fksh(winBalance)}</div>
+      <div class="ksub">Company target ${fksh(COMPANY_TARGET)} · Won ${fksh(winsValue)}</div>
+      <div class="kc-line" style="background:linear-gradient(90deg,transparent,var(--em),transparent)"></div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div class="left-col">
+      <div class="g pn" style="flex:0.72;min-height:0">
+        <div class="pt">Revenue Tracking${overPill}</div>
+        <div class="rev-meter">
+          <div class="rev-seg" style="width:${realW}%;background:var(--em)"></div>
+          <div class="rev-seg" style="width:${runW}%;background:var(--sk)"></div>
+          <div class="rev-seg" style="width:${balW}%;background:var(--ro)"></div>
+        </div>
+        <div class="rev-chips">
+          <div class="rev-chip" style="background:rgba(13,148,136,.08);border-color:rgba(13,148,136,.28)">
+            <div class="rc-label" style="color:var(--em)">Realized</div>
+            <div class="rc-val" style="color:var(--em)">${fksh(realisedKES)}</div>
+          </div>
+          <div class="rev-chip" style="background:rgba(100,116,139,.07);border-color:rgba(100,116,139,.22)">
+            <div class="rc-label" style="color:var(--sk)">Running</div>
+            <div class="rc-val" style="color:var(--sk)">${fksh(runningKES)}</div>
+          </div>
+          <div class="rev-chip" style="background:rgba(220,38,38,.07);border-color:rgba(220,38,38,.22)">
+            <div class="rc-label" style="color:var(--ro)">Balance</div>
+            <div class="rc-val" style="color:var(--ro)">${fksh(revBalance)}</div>
+          </div>
+        </div>
+        <div class="rev-rows">
+          <div class="rev-row">
+            <div class="rev-lbl" style="color:var(--em)">Realized</div>
+            <div class="rev-track"><div class="rev-fill" style="width:${realW}%;background:var(--em)"></div></div>
+            <div class="rev-pct">${realPct}%</div>
+          </div>
+          <div class="rev-row">
+            <div class="rev-lbl" style="color:var(--sk)">Running</div>
+            <div class="rev-track"><div class="rev-fill" style="width:${runW}%;background:var(--sk)"></div></div>
+            <div class="rev-pct">${runPct}%</div>
+          </div>
+          <div class="rev-row">
+            <div class="rev-lbl" style="color:var(--ro)">Balance</div>
+            <div class="rev-track"><div class="rev-fill" style="width:${balW}%;background:var(--ro)"></div></div>
+            <div class="rev-pct">${balPct}%</div>
+          </div>
+        </div>
+      </div>
+      <div class="g pn" style="flex:0.58;min-height:0">
+        <div class="pt">Deal Origination</div>
+        <div class="src-grid">${srcRowsHTML}</div>
+      </div>
+      <div class="g pn" style="flex:1.7;min-height:0">
+        <div class="pt">Recent Wins</div>
+        <div class="wins-list">${winsListHTML}</div>
+      </div>
+    </div>
+
+    <div class="centre-col">
+      <div class="g pdm-panel">
+        <div class="pt">Stage Distribution · by Division</div>
+        ${phaseChipsHTML}
+        ${phaseHdrHTML}
+        <div class="pdm-table">${headerRow}${dataRows}</div>
+        ${pdmLegendHTML}
+      </div>
+      <div class="g hv-panel">
+        <div class="pt">Highest Value · Open Pipeline</div>
+        <div class="hv-list">${hvHTML}</div>
+      </div>
+      <div class="g ticker-panel">
+        <div class="pt" style="margin-bottom:3px">Near Close</div>
+        <div class="ticker-wrap"><div class="ticker-inner">${tickItems}${tickItems}</div></div>
+      </div>
+    </div>
+
+    <div class="g quads-panel">
+      <div class="pt">Deal Focus · Quadrants</div>
+      <div class="quads-grid">
+        <div class="quad quad-win">
+          <div class="quad-accent" style="background:var(--em)"></div>
+          <div class="quad-hdr">
+            <div><div class="quad-label" style="color:var(--em)">Win These</div><div class="quad-title">High value · High probability</div></div>
+            <div class="quad-n">${quadWin.length}</div>
+          </div>
+          <div class="quad-body">${quadWin.map(qRow).join('')||qEmpty}</div>
+        </div>
+        <div class="quad quad-close">
+          <div class="quad-accent" style="background:var(--sk)"></div>
+          <div class="quad-hdr">
+            <div><div class="quad-label" style="color:var(--sk)">Close Soon</div><div class="quad-title">Low value · High probability</div></div>
+            <div class="quad-n">${quadClose.length}</div>
+          </div>
+          <div class="quad-body">${quadClose.map(qRow).join('')||qEmpty}</div>
+        </div>
+        <div class="quad quad-ace">
+          <div class="quad-accent" style="background:var(--am)"></div>
+          <div class="quad-hdr">
+            <div><div class="quad-label" style="color:var(--am)">Act Now</div><div class="quad-title">High value · Low probability</div></div>
+            <div class="quad-n">${quadAce.length}</div>
+          </div>
+          <div class="quad-body">${quadAce.map(qRow).join('')||qEmpty}</div>
+        </div>
+        <div class="quad quad-nurture">
+          <div class="quad-accent" style="background:var(--vi)"></div>
+          <div class="quad-hdr">
+            <div><div class="quad-label" style="color:var(--vi)">Nurture</div><div class="quad-title">Low value · Low probability</div></div>
+            <div class="quad-n">${quadNurture.length}</div>
+          </div>
+          <div class="quad-body">${quadNurture.map(qRow).join('')||qEmpty}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g sayings-bar">
+    <div class="say-text">${SAYINGS[si]}</div>
+  </div>`;
+
+  startClock();
+  initSpecular();
+  scaleUI(); // reapply scale after innerHTML rebuild
+}
+
+let _ci=null;
+function startClock(){
+  clearInterval(_ci);
+  const tick=()=>{const el=document.getElementById('clk');if(!el)return;const n=new Date(),p=t=>t.toString().padStart(2,'0');el.textContent=p(n.getHours())+':'+p(n.getMinutes())+':'+p(n.getSeconds());};
+  tick();_ci=setInterval(tick,1000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   SLIDESHOW
+═══════════════════════════════════════════════════════ */
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+let REPO=[],bgEls=[],cur_i=0,timer_id;
+const HOLD_MS=38000,FADE_MS=5000;
+
+const SEED_IMG=[
+  /* ── PARAMETRIC & ICONIC ARCHITECTURE ── */
+  {url:'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1920&q=88&fit=crop',title:'Glass Tower · Dubai Financial District',credit:'Unsplash · Architecture'},
+  {url:'https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1920&q=88&fit=crop',title:'Minimalist Facade · Contemporary Commercial',credit:'Unsplash · Architecture'},
+  {url:'https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=1920&q=88&fit=crop',title:'Parametric Form · 21st Century Landmark',credit:'Unsplash · Architecture'},
+  {url:'https://images.unsplash.com/photo-1486718448742-163732cd1544?w=1920&q=88&fit=crop',title:'Geometric Facade · Structural Detail',credit:'Unsplash · Architecture'},
+  {url:'https://images.unsplash.com/photo-1464938050520-ef2270bb8ce8?w=1920&q=88&fit=crop',title:'Atrium Interior · Public Architecture',credit:'Unsplash · Architecture'},
+  /* ── BRUTALIST & RAW CONCRETE ── */
+  {url:'https://images.unsplash.com/photo-1510798831971-661eb04b3739?w=1920&q=88&fit=crop',title:'Brutalist Block · Exposed Concrete',credit:'Unsplash · Architecture'},
+  {url:'https://images.unsplash.com/photo-1574691250077-03a929faece5?w=1920&q=88&fit=crop',title:'Raw Structure · Mass & Light',credit:'Unsplash · Architecture'},
+  {url:'https://images.unsplash.com/photo-1494783367685-2de226e0e7ea?w=1920&q=88&fit=crop',title:'Concrete Geometry · Urban Scale',credit:'Unsplash · Architecture'},
+  /* ── URBAN NIGHTSCAPES ── */
+  {url:'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=88&fit=crop',title:'City at Night · Bridge & Reflection',credit:'Unsplash · Urban Photography'},
+  {url:'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1920&q=88&fit=crop',title:'Manhattan Skyline · Blue Hour',credit:'Unsplash · Urban Photography'},
+  {url:'https://images.unsplash.com/photo-1545670723-196ed0954986?w=1920&q=88&fit=crop',title:'Urban Grid · Infrastructure at Night',credit:'Unsplash · Urban Photography'},
+  {url:'https://images.unsplash.com/photo-1529693662493-aea7a3d08f9c?w=1920&q=88&fit=crop',title:'Night Towers · Commercial District',credit:'Unsplash · Urban Photography'},
+  /* ── CREATIVE INTERIORS & DESIGN STUDIOS ── */
+  {url:'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1920&q=88&fit=crop',title:'Design Studio · Raw Loft Interior',credit:'Unsplash · Interior Design'},
+  {url:'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1920&q=88&fit=crop',title:'Minimalist Interior · 21st Century Living',credit:'Unsplash · Interior Design'},
+  {url:'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1920&q=88&fit=crop',title:'Creative Space · Modern Office',credit:'Unsplash · Interior Design'},
+  /* ── INDUSTRIAL & INFRASTRUCTURE ── */
+  {url:'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=88&fit=crop',title:'Heavy Infrastructure · Construction at Scale',credit:'Unsplash · Industrial Photography'},
+  {url:'https://images.unsplash.com/photo-1565043589221-1a6fd9ae45c7?w=1920&q=88&fit=crop',title:'Fabrication · Industrial Precision',credit:'Unsplash · Industrial Photography'},
+  {url:'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=1920&q=88&fit=crop',title:'Port Terminal · Marine Infrastructure',credit:'Unsplash · Industrial Photography'},
+  /* ── CONTEMPORARY ARCHITECTURAL DETAIL ── */
+  {url:'https://images.unsplash.com/photo-1486734574917-e2e589c7c8f0?w=1920&q=88&fit=crop',title:'Structural Lines · Geometry in Architecture',credit:'Unsplash · Architecture'},
+  {url:'https://images.unsplash.com/photo-1524230572899-a752b3835840?w=1920&q=88&fit=crop',title:'Tower Exterior · Curtain Wall Detail',credit:'Unsplash · Architecture'},
+];
+
+function showLabel(i){
+  if(!REPO[i])return;const sl=document.getElementById('sl');if(!sl)return;
+  document.getElementById('slt').textContent=REPO[i].title;
+  document.getElementById('sly').textContent=REPO[i].credit;
+  sl.classList.add('show');setTimeout(()=>sl.classList.remove('show'),5500);
+}
+function goTo(next){
+  if(!bgEls.length||!bgEls[next]||!bgEls[cur_i])return;
+  clearTimeout(timer_id);const prev=cur_i;
+  bgEls[next].classList.add('on');
+  setTimeout(()=>{if(bgEls[prev])bgEls[prev].classList.remove('on');cur_i=next;showLabel(next);sched();},FADE_MS+200);
+}
+function sched(){timer_id=setTimeout(()=>goTo((cur_i+1)%REPO.length),HOLD_MS);}
+/* ── AUTONOMOUS DRIFT ENGINE ─────────────────────────────
+   Lissajous sine-wave drift: X and Y use different prime-
+   ratio frequencies so the path never exactly repeats.
+   Each image gets unique phase offsets → no two drift alike.
+   Page Visibility API pauses time when screen sleeps so
+   motion resumes exactly where it left off on wake.
+   ──────────────────────────────────────────────────────── */
+
+// Drift params per image — generated once at buildSlideshow time
+// Each image: { phX, phY, phS, phR, fX, fY, fS }
+//   ph* = phase offset (radians) — where in the sine cycle this image starts
+//   fX/fY = frequency multipliers (different primes → Lissajous path)
+//   fS    = scale frequency
+const driftParams = [];
+
+// Shared time counter — advances in RAF, paused when page hidden
+let driftT = 0;
+let driftLastTs = null;
+let driftRAF = null;
+
+// Amplitude constants — how far the image can travel (% of viewport)
+const AMP_X  = 1.8;   // ±1.8% horizontal
+const AMP_Y  = 1.2;   // ±1.2% vertical
+const AMP_S  = 0.055; // scale range: 1.04 → 1.095 (always zoomed in slightly)
+const BASE_S = 1.040; // minimum scale — never shows letterboxing
+const AMP_R  = 0.12;  // ±0.12deg subtle rotation
+
+// Frequency constants (all slow — full cycle in 60-120s)
+// Using irrational-ratio pairs so X/Y never sync back up
+const FREQ_X_BASE = 0.00780; // rad/s  (≈80s cycle)
+const FREQ_Y_BASE = 0.00510; // rad/s  (≈123s cycle) — ~golden ratio apart
+const FREQ_S_BASE = 0.00340; // rad/s  (≈185s cycle)
+
+function makeDriftParams(idx){
+  // Deterministic pseudo-random from index — same each time, no flicker on rebuild
+  const seed = idx * 2.6180339887; // golden ratio * idx
+  const frac = v => v - Math.floor(v);
+  return {
+    phX: frac(seed * 1.0) * Math.PI * 2,
+    phY: frac(seed * 1.618) * Math.PI * 2,
+    phS: frac(seed * 2.414) * Math.PI * 2,
+    phR: frac(seed * 3.141) * Math.PI * 2,
+    // Each image gets slightly different frequency — ±15% variation
+    fX:  1 + (frac(seed * 0.577) - 0.5) * 0.30,
+    fY:  1 + (frac(seed * 0.414) - 0.5) * 0.30,
+    fS:  1 + (frac(seed * 0.732) - 0.5) * 0.20,
+  };
+}
+
+function applyDrift(el, p, t){
+  const x = Math.sin(t * FREQ_X_BASE * p.fX + p.phX) * AMP_X;
+  const y = Math.sin(t * FREQ_Y_BASE * p.fY + p.phY) * AMP_Y;
+  const s = BASE_S + (Math.sin(t * FREQ_S_BASE * p.fS + p.phS) * 0.5 + 0.5) * AMP_S;
+  const r = Math.sin(t * FREQ_S_BASE * 0.7 * p.fS + p.phR) * AMP_R;
+  el.style.transform = `scale(${s}) translate(${x}%,${y}%) rotate(${r}deg)`;
+}
+
+function driftTick(ts){
+  if(driftLastTs !== null){
+    const dt = Math.min(ts - driftLastTs, 100); // cap at 100ms — handles tab-sleep lag frames
+    driftT += dt * 0.001; // convert ms → seconds
+  }
+  driftLastTs = ts;
+
+  // Apply to all images — only visible one matters but keeping all in sync
+  // means a newly-fading-in image is already mid-motion, never snaps from zero
+  for(let i = 0; i < bgEls.length; i++){
+    if(driftParams[i]) applyDrift(bgEls[i], driftParams[i], driftT);
+  }
+  driftRAF = requestAnimationFrame(driftTick);
+}
+
+// Pause time when display sleeps, resume cleanly on wake
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){
+    // Page going to sleep — cancel RAF, remember we paused
+    if(driftRAF){ cancelAnimationFrame(driftRAF); driftRAF = null; }
+    driftLastTs = null; // force dt=0 on next frame so no jump
+  } else {
+    // Page waking — restart RAF from where t left off
+    if(!driftRAF) driftRAF = requestAnimationFrame(driftTick);
+  }
+});
+
+function buildSlideshow(){
+  const bgsEl=document.getElementById('bgs');bgsEl.innerHTML='';bgEls=[];cur_i=0;clearTimeout(timer_id);
+  // Stop existing RAF before rebuilding
+  if(driftRAF){cancelAnimationFrame(driftRAF);driftRAF=null;}
+  driftParams.length = 0;
+
+  REPO.forEach((item,idx)=>{
+    const d=document.createElement('div');d.className='bg-img';
+    d.style.backgroundImage=`url('${item.url}')`;
+    bgsEl.appendChild(d);bgEls.push(d);
+    driftParams.push(makeDriftParams(idx));
+  });
+
+  if(bgEls[0]){bgEls[0].classList.add('on');showLabel(0);sched();}
+  // Start the autonomous drift loop
+  driftLastTs = null;
+  driftRAF = requestAnimationFrame(driftTick);
+}
+function appendSlides(items){
+  const bgsEl=document.getElementById('bgs');
+  items.forEach(item=>{
+    if(REPO.some(r=>r.url===item.url))return;
+    const i=bgEls.length;
+    const d=document.createElement('div');d.className='bg-img';
+    d.style.backgroundImage=`url('${item.url}')`;
+    bgsEl.appendChild(d);bgEls.push(d);
+    driftParams.push(makeDriftParams(i)); // assign unique drift to new image
+    REPO.push(item);
+  });
+}
+/* ── DAILY PHOTO POOL — pulls from photos.php (cached 24hr on server) ── */
+const PHOTOS_API = (()=>{
+  const b = window.location.pathname.replace(/\/[^/]*$/, '');
+  return b + '/api/photos.php';
+})();
+
+async function fetchPhotos(){
+  try {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(()=>ctrl.abort(), 8000);
+    const res  = await fetch(PHOTOS_API, {signal:ctrl.signal});
+    clearTimeout(tid);
+    if(!res.ok) return [];
+    const data = await res.json();
+    if(!Array.isArray(data)||!data.length) return [];
+    return data.filter(p=>p.url&&p.title&&p.credit);
+  } catch(_){ return []; }
+}
+
+/* ── VIEWPORT SCALER ──────────────────────────────────
+   Computes the ratio between the actual window size and
+   the design size (--design-w × --design-h), then applies transform:scale
+   to #ui so all content fits without clipping.
+
+   Uses ResizeObserver on document.documentElement so it
+   fires correctly on both window resize AND browser zoom
+   (zoom changes devicePixelRatio AND CSS viewport size).
+
+   translateX/Y centres the scaled UI if the aspect ratio
+   of the window doesn't match 16:9.
+──────────────────────────────────────────────────────── */
+const _cssNum = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
+const DESIGN_W = _cssNum('--design-w') || 1600;
+const DESIGN_H = _cssNum('--design-h') || 900;
+const uiScaleEl = document.getElementById('ui');
+
+function scaleUI(){
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
+  const tx = (vw - DESIGN_W * scale) / 2;
+  const ty = (vh - DESIGN_H * scale) / 2;
+  uiScaleEl.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+}
+
+scaleUI();
+const _scaleObserver = new ResizeObserver(scaleUI);
+_scaleObserver.observe(document.documentElement);
+window.addEventListener('resize', scaleUI);
+const cur=document.getElementById('cur'),cdot=document.getElementById('cdot');
+let MX=innerWidth/2,MY=innerHeight/2,RX=MX,RY=MY;
+document.addEventListener('mousemove',e=>{MX=e.clientX;MY=e.clientY;cdot.style.left=MX+'px';cdot.style.top=MY+'px'});
+(function ca(){RX+=(MX-RX)*.12;RY+=(MY-RY)*.12;cur.style.left=RX+'px';cur.style.top=RY+'px';requestAnimationFrame(ca)})();
+
+/* ── SPECULAR CURSOR TRACKING ──
+   On mousemove over any .g card, compute the cursor's position as a
+   percentage of the card's own width/height, then write that as --mx/--my.
+   The CSS ::before radial-gradient uses those values to position the
+   specular hot spot — simulating the highlight migration on the inflated
+   surface reference images.
+   Uses requestAnimationFrame throttle so it never runs more than 60fps.
+*/
+let _specRAF = null;
+function initSpecular(){
+  document.querySelectorAll('.g').forEach(card=>{
+    card.addEventListener('mousemove', e=>{
+      if(_specRAF) return;
+      _specRAF = requestAnimationFrame(()=>{
+        const r = card.getBoundingClientRect();
+        const x = ((e.clientX - r.left) / r.width  * 100).toFixed(1) + '%';
+        const y = ((e.clientY - r.top)  / r.height * 100).toFixed(1) + '%';
+        card.style.setProperty('--mx', x);
+        card.style.setProperty('--my', y);
+        _specRAF = null;
+      });
+    });
+    card.addEventListener('mouseleave', ()=>{
+      // Reset to default cavity hot-spot position (centre-ish of card)
+      card.style.setProperty('--mx','50%');
+      card.style.setProperty('--my','45%');
+    });
+  });
+}
+
+/* AMBIENT MODE — fades UI after 90s inactivity, restores on any input */
+const AMBIENT_DELAY = 90 * 1000;
+let _ambTimer = null;
+const uiEl  = uiScaleEl; /* same element, reuse reference */
+const ovEl  = document.querySelector('.ov');
+
+function goAmbient(){
+  document.body.classList.add('ambient');
+  uiEl.classList.add('ambient');
+  ovEl.classList.add('ambient');
+}
+function wakeUp(){
+  document.body.classList.remove('ambient');
+  uiEl.classList.remove('ambient');
+  ovEl.classList.remove('ambient');
+  clearTimeout(_ambTimer);
+  _ambTimer = setTimeout(goAmbient, AMBIENT_DELAY);
+}
+['mousemove','mousedown','keydown','touchstart','wheel'].forEach(ev=>
+  document.addEventListener(ev, wakeUp, {passive:true})
+);
+wakeUp(); // start the inactivity countdown on load
+
+/* ── TRIPLE-CLICK THEME TOGGLE ──────────────────────────
+   Three clicks on the LIVE · DATA pill within 600ms
+   toggles between light (default) and dark theme.
+   Uses event delegation on #ui so it works even after
+   each render() call rebuilds the innerHTML.
+   A brief flash animation on the pill confirms the switch.
+──────────────────────────────────────────────────────── */
+let _themeClicks = 0;
+let _themeTimer  = null;
+let _isDark      = false;
+
+document.addEventListener('click', e => {
+  const pill = e.target.closest('.live-pill');
+  if(!pill) return;
+
+  _themeClicks++;
+  clearTimeout(_themeTimer);
+
+  if(_themeClicks >= 3){
+    _themeClicks = 0;
+    _isDark = !_isDark;
+
+    // Apply theme class to body
+    document.body.classList.toggle('dark', _isDark);
+
+    // Update JS divColor + srcColors so render() uses right palette
+    const DC = _isDark
+      ? {DM:'var(--c-dm)',CI:'var(--c-ci)',MF:'var(--c-mf)',EA:'var(--c-ea)'}
+      : {DM:'#0d9488',CI:'#64748b',MF:'#d97706',EA:'#7c3aed'};
+    Object.assign(divColor, DC);
+    srcColors.B2B = _isDark ? 'var(--em)' : '#0d9488';
+    srcColors.B2C = _isDark ? 'var(--vi)' : '#7c3aed';
+    srcColors.SP  = _isDark ? 'var(--am)' : '#d97706';
+    srcColors.B2G = _isDark ? 'var(--sk)' : '#64748b';
+
+    // Flash the pill to confirm
+    pill.classList.remove('theme-flash');
+    void pill.offsetWidth; // reflow to restart animation
+    pill.classList.add('theme-flash');
+    pill.addEventListener('animationend', () => pill.classList.remove('theme-flash'), {once:true});
+
+    // Re-render so inline colours (rev-chips, stripes, etc.) update immediately
+    render();
+    return;
+  }
+
+  // Reset click counter if third click doesn't come within 600ms
+  _themeTimer = setTimeout(() => { _themeClicks = 0; }, 600);
+});
+
+/* ═══════════════════════════════════════════════════════
+   BOOT — fetch live data, then render; keep refreshing
+═══════════════════════════════════════════════════════ */
+async function boot(){
+  REPO=shuffle([...SEED_IMG]);buildSlideshow();
+  render();                         // immediate render on seed data
+  await fetchData();                // try to pull from API
+  render();                         // re-render with live data if API succeeded
+  // Periodic refresh: data every 5 min, re-render immediately after
+  setInterval(async()=>{
+    await fetchData();
+    render();
+  }, 5*60*1000);
+  // Daily photo pool — appends fresh Unsplash photos, reshuffles full pool, falls back silently to seed
+  const freshPhotos = await fetchPhotos().catch(()=>[]);
+  if(freshPhotos.length){
+    appendSlides(shuffle(freshPhotos));   // add new slides to DOM + REPO
+    REPO = shuffle([...REPO]);            // reshuffle full pool so fresh photos weave in
+  }
+}
+boot();
+</script>
+</body>
+</html>

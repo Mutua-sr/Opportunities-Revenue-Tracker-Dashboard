@@ -1,0 +1,52 @@
+# Credentials — NEVER commit
+api/config.php
+api/secrets.php
+.env
+.env.*
+!.env.example
+
+# One-shot setup scripts (delete from server after use)
+api/create_user.php
+api/create_users.php
+api/setup-admin.php
+
+# Diagnostics — leak server internals if deployed
+debug.php
+api/test.php
+api/diagnose.php
+
+# Server logs and host config
+*error_log
+error_log
+*.log
+logs/
+php.ini
+.user.ini
+
+# Runtime caches
+api/cache/*.json
+
+# Database dumps / backups
+*.sql.gz
+*.dump
+Back*Up*
+BackUp*
+backup*/
+*.zip
+
+# Exported reports (contain real commercial data)
+*.xlsx
+*.xls
+*.csv
+*.pdf
+
+# Dependencies
+node_modules/
+vendor/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
